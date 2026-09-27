@@ -79,12 +79,12 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
         Assert.Equal(ItemStatus.Running, item.Status);
 
         viewModel.Apply(new StageEvent { Stage = "demux", Status = "start" });
-        Assert.Equal("demux", item.Detail);
+        Assert.Equal("Demuxing", item.Detail);
 
         viewModel.Apply(new ProgressEvent { Stage = "demux", Current = 5, Total = 10 });
         Assert.Equal(50, item.Progress);
         // No run position in the text, because only a real run sets runTotal.
-        Assert.Equal("demux · 50%", viewModel.StageText);
+        Assert.Equal("Demuxing · 50%", viewModel.StageText);
 
         var output = scratch.File(Path.Combine("out", "a", "a.mkv"));
         viewModel.Apply(new ResultEvent { File = "a.usm", Output = output });
@@ -267,9 +267,9 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
     }
 
     [Theory]
-    [InlineData("exists", "already exists")]
-    [InlineData("no_key", "no key")]
-    [InlineData("requested", "skipped on request")]
+    [InlineData("exists", "Already exists")]
+    [InlineData("no_key", "No key")]
+    [InlineData("requested", "Skipped on request")]
     public void SkipReasonsBecomeReadableDetail(string reason, string expected)
     {
         var viewModel = NewViewModel();
@@ -487,7 +487,7 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
         viewModel.Apply(new StageEvent { Stage = "subtitles", Status = "start" });
         viewModel.Apply(new ProgressEvent { Stage = "subtitles", Current = 1, Total = 4 });
 
-        Assert.Equal("subtitles · 25%", viewModel.StageText);
+        Assert.Equal("Updating subtitles · 25%", viewModel.StageText);
         Assert.Equal(0, item.Progress);
         Assert.Equal(ItemStatus.Pending, item.Status);
     }
@@ -525,7 +525,7 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
     }
 
     [Theory]
-    [InlineData(3, ItemStatus.Error, "engine exited with code 3")]
+    [InlineData(3, ItemStatus.Error, "Engine exited with code 3")]
     [InlineData(0, ItemStatus.Pending, "")]
     public async Task ARowTheEngineLeftRunningIsSettledByHowTheEngineEnded(int exitCode, ItemStatus expected, string detail)
     {
@@ -637,7 +637,7 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
 
         Assert.False(viewModel.IsRunning);
         Assert.Equal(ItemStatus.Error, running.Status);
-        Assert.Equal("stopped by an unexpected error", running.Detail);
+        Assert.Equal("Stopped by an unexpected error", running.Detail);
         Assert.Equal(ItemStatus.Pending, queued.Status);
     }
 

@@ -497,7 +497,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (current is { Status: ItemStatus.Running } item)
         {
             client?.SendSkip(item.FileName);
-            item.Detail = "skipping…";
+            item.Detail = "Skipping…";
         }
     }
 
@@ -631,7 +631,7 @@ public sealed partial class MainViewModel : ObservableObject
             }
             else if (exitCode != 0)
             {
-                failure = $"engine exited with code {exitCode}";
+                failure = $"Engine exited with code {exitCode}";
                 AppendLog($"Engine exited with code {exitCode}.");
 
                 // The engine exits 1 after a batch in which any file failed, and those rows
@@ -648,14 +648,14 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (Win32Exception e)
         {
-            failure = "engine could not be started";
+            failure = "Engine could not be started";
             AppendLog($"Could not start the engine '{profile.FileName}': {e.Message}");
         }
         catch (Exception)
         {
             // A bug in Apply ends the run, and disposing the client kills the engine. The
             // unhandled-error dialog shows the exception.
-            failure = "stopped by an unexpected error";
+            failure = "Stopped by an unexpected error";
             throw;
         }
         finally
@@ -727,7 +727,7 @@ public sealed partial class MainViewModel : ObservableObject
                 ShowStage(Describe(stage.Stage, null));
                 if (current is not null)
                 {
-                    current.Detail = stage.Stage;
+                    current.Detail = StageName(stage.Stage);
                     current.Progress = 0;
                 }
 
@@ -764,9 +764,9 @@ public sealed partial class MainViewModel : ObservableObject
                 skippedItem.Status = ItemStatus.Skipped;
                 skippedItem.Detail = skipped.Reason switch
                 {
-                    "exists" => "already exists",
-                    "no_key" => "no key",
-                    "requested" => "skipped on request",
+                    "exists" => "Already exists",
+                    "no_key" => "No key",
+                    "requested" => "Skipped on request",
                     _ => skipped.Reason,
                 };
                 break;
@@ -822,10 +822,10 @@ public sealed partial class MainViewModel : ObservableObject
 
             case UpdateEvent update:
                 AppendLog(update.Available
-                    ? $"charlotte {update.Latest} is available (running {update.Current})."
+                    ? $"Charlotte {update.Latest} is available (running {update.Current})."
                     : update.Reason is { Length: > 0 } reason
                         ? $"Update check failed: {reason}"
-                        : $"charlotte {update.Current} is up to date.");
+                        : $"Charlotte {update.Current} is up to date.");
                 LatestUpdate = update;
                 break;
 
@@ -866,9 +866,19 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    private static string StageName(string stage) => stage switch
+    {
+        "demux" => "Demuxing",
+        "crack" => "Recovering key",
+        "ffmpeg" => "Encoding",
+        "subtitles" => "Updating subtitles",
+        _ => stage,
+    };
+
     private string Describe(string stage, int? percent)
     {
-        var text = percent is { } value ? $"{stage} · {value}%" : stage;
+        var name = StageName(stage);
+        var text = percent is { } value ? $"{name} · {value}%" : name;
         return current is null || runTotal == 0 ? text : $"{runIndex}/{runTotal} · {text}";
     }
 

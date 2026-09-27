@@ -38,7 +38,7 @@ public partial class MainWindow : Window
             ShowSettings = ShowSettings,
             PromptKey = PromptKey,
             CopyText = CopyToClipboard,
-            AnswerQuestion = prompt => MessageDialog.Show(this, "charlotte", prompt, "Yes", "No"),
+            AnswerQuestion = prompt => MessageDialog.Show(this, "Charlotte", prompt, "Yes", "No"),
             ConfirmUpdate = ConfirmUpdate,
             RestartRequested = Restart,
         };
@@ -143,7 +143,7 @@ public partial class MainWindow : Window
         {
             MessageDialog.Show(
                 this,
-                "Could not find charlotte",
+                "Could not find Charlotte",
                 "Converting and key recovery are unavailable until charlotte-cli.exe is where the engine setting points. Pick it under Settings > Engine, or put it beside charlotte-gui.exe.",
                 detail: $"Expected: {viewModel.EnginePath}");
         }
@@ -256,7 +256,7 @@ public partial class MainWindow : Window
             else
             {
                 MessageDialog.Show(this, "Up to date",
-                    $"charlotte {update.Current} is the latest release.");
+                    $"Charlotte {update.Current} is the latest release.");
             }
 
             return false;
@@ -265,7 +265,7 @@ public partial class MainWindow : Window
         var notes = update.Notes is { Length: > 1200 } text ? text[..1200] + "…" : update.Notes;
         return MessageDialog.Show(
             this,
-            $"charlotte {update.Latest} is available",
+            $"Charlotte {update.Latest} is available",
             $"Update from {update.Current} → {update.Latest}? Charlotte will automatically restart when done.",
             "Update", "Cancel", notes);
     }

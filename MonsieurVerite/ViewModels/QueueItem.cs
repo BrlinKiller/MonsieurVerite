@@ -84,8 +84,18 @@ public sealed partial class QueueItem : ObservableObject
     public bool HasProgress =>
         Status is ItemStatus.Running or ItemStatus.Done or ItemStatus.Error or ItemStatus.Cancelled;
 
-    public string StatusLabel =>
-        Status == ItemStatus.Running && Detail.Length > 0 ? Detail : Status.ToString();
+    public string StatusLabel => Status switch
+    {
+        ItemStatus.Running when Detail.Length > 0 => Detail,
+        ItemStatus.Pending => "Pending",
+        ItemStatus.Queued => "Queued",
+        ItemStatus.Running => "Running",
+        ItemStatus.Done => "Done",
+        ItemStatus.Skipped => "Skipped",
+        ItemStatus.Error => "Error",
+        ItemStatus.Cancelled => "Cancelled",
+        _ => "",
+    };
 
     [ObservableProperty] public partial double Progress { get; set; }
 

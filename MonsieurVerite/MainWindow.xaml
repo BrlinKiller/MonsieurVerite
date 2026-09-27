@@ -83,7 +83,7 @@
                                 <Separator />
                                 <MenuItem Header="Check for updates…"
                                           Command="{Binding CheckForUpdatesCommand}" />
-                                <MenuItem Header="About charlotte" Click="About_Click" />
+                                <MenuItem Header="About Charlotte" Click="About_Click" />
                                 <Separator />
                                 <MenuItem Header="Exit" Click="Exit_Click" />
                             </ContextMenu>
@@ -131,7 +131,7 @@
                         <MenuItem Header="Remove from queue"
                                   Command="{Binding RemoveCheckedCommand}" />
                         <MenuItem Header="Recover key" Command="{Binding RecoverKeysCommand}" />
-                        <MenuItem Header="Set key manually..." Command="{Binding SetKeyCommand}" />
+                        <MenuItem Header="Set key manually…" Command="{Binding SetKeyCommand}" />
                         <MenuItem Header="Copy video key" Command="{Binding CopyVideoKeyCommand}" />
                         <MenuItem Header="Retry failed" Command="{Binding RetryFailedCommand}" />
                         <Separator />
@@ -273,7 +273,7 @@
                     <StackPanel Orientation="Horizontal">
                         <Path Style="{StaticResource Icon}" Data="{StaticResource FolderIcon}"
                               Margin="0,0,8,0" />
-                        <TextBlock Text="Browse" VerticalAlignment="Center" />
+                        <TextBlock Text="Browse…" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
                 <TextBlock DockPanel.Dock="Left" Text="Output" FontSize="12"

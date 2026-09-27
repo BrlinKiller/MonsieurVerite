@@ -12,13 +12,10 @@ public partial class KeyDialog : DialogWindow
     {
         InitializeComponent();
         this.streamCipher = streamCipher;
+        Heading.Text = streamCipher ? "Decryption keys" : "Decryption key";
         Caption.Text = $"Apply your own key to {fileName}.";
-        if (streamCipher)
-        {
-            Heading.Text = "Decryption keys";
-            KeyLabel.Text = "Audio key";
-            AesKeyPanel.Visibility = Visibility.Visible;
-        }
+        KeyLabel.Text = streamCipher ? "Audio key" : "Video key";
+        AesKeyPanel.Visibility = streamCipher ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public string Key { get; private set; } = "";

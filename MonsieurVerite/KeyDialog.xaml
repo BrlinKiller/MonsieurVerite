@@ -16,17 +16,17 @@
 
     <Grid>
         <StackPanel Style="{StaticResource DialogRoot}">
-            <TextBlock x:Name="Heading" Style="{StaticResource DialogTitle}" Text="Decryption key" />
+            <TextBlock x:Name="Heading" Style="{StaticResource DialogTitle}" />
             <TextBlock x:Name="Caption" Style="{StaticResource DialogBody}" Margin="0,0,0,12" />
 
-            <TextBlock x:Name="KeyLabel" Style="{StaticResource OptionLabel}" Text="Video key"
+            <TextBlock x:Name="KeyLabel" Style="{StaticResource OptionLabel}"
                        Margin="0,0,0,4" />
             <TextBox x:Name="KeyBox" Style="{StaticResource KeyField}"
                      TextChanged="KeyBox_TextChanged" />
             <TextBlock Style="{StaticResource DialogCaption}" Margin="0,0,0,16"
                        Text="Format: decimal integer. Example: 6542161829131848" />
 
-            <StackPanel x:Name="AesKeyPanel" Visibility="Collapsed">
+            <StackPanel x:Name="AesKeyPanel">
                 <TextBlock Style="{StaticResource OptionLabel}" Text="Video key" Margin="0,0,0,4" />
                 <TextBox x:Name="AesKeyBox" Style="{StaticResource KeyField}"
                          TextChanged="KeyBox_TextChanged" />
