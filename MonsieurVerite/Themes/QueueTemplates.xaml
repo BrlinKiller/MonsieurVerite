@@ -42,7 +42,7 @@
             <TextBlock Style="{StaticResource FileNameText}" />
             <Path Style="{StaticResource MissingVsScriptGlyph}"
                   Data="{StaticResource FilterOffIcon}"
-                  ToolTip="No VapourSynth script for this file — it will be muxed unfiltered" />
+                  ToolTip="{x:Static local:Strings.NO_VS_SCRIPT_TIP}" />
         </StackPanel>
     </DataTemplate>
 
@@ -59,7 +59,7 @@
     </Style>
 
     <Style x:Key="KeyPresentGlyph" TargetType="Path" BasedOn="{StaticResource PresentGlyph}">
-        <Setter Property="ToolTip" Value="Key is in keys.json" />
+        <Setter Property="ToolTip" Value="{x:Static local:Strings.KEY_PRESENT_TIP}" />
         <Style.Triggers>
             <DataTrigger Binding="{Binding Key}" Value="Present">
                 <Setter Property="Visibility" Value="Visible" />
@@ -99,11 +99,11 @@
         <Setter Property="FontSize" Value="11.5" />
         <Style.Triggers>
             <DataTrigger Binding="{Binding Key}" Value="Missing">
-                <Setter Property="Text" Value="Missing" />
+                <Setter Property="Text" Value="{x:Static local:Strings.KEY_MISSING}" />
                 <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
             </DataTrigger>
             <DataTrigger Binding="{Binding Key}" Value="Recovered">
-                <Setter Property="Text" Value="Recovered" />
+                <Setter Property="Text" Value="{x:Static local:Strings.KEY_RECOVERED}" />
                 <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
             </DataTrigger>
         </Style.Triggers>
@@ -119,8 +119,7 @@
     </DataTemplate>
 
     <Style x:Key="SubtitlesPresentGlyph" TargetType="Path" BasedOn="{StaticResource PresentGlyph}">
-        <Setter Property="ToolTip"
-                Value="{Binding SubtitleLanguages, StringFormat='Cached subtitles: {0}'}" />
+        <Setter Property="ToolTip" Value="{Binding SubtitlesTip}" />
         <Style.Triggers>
             <DataTrigger Binding="{Binding HasSubtitles}" Value="True">
                 <Setter Property="Visibility" Value="Visible" />
@@ -132,7 +131,7 @@
         <Setter Property="Data" Value="{StaticResource CrossIcon}" />
         <Setter Property="Stroke" Value="{StaticResource FaintBrush}" />
         <Setter Property="ToolTip"
-                Value="No cached subtitles — this file will mux without any subtitle track" />
+                Value="{x:Static local:Strings.NO_SUBTITLES_TIP}" />
         <Style.Triggers>
             <DataTrigger Binding="{Binding HasSubtitles}" Value="False">
                 <Setter Property="Visibility" Value="Visible" />

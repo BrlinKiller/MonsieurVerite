@@ -34,7 +34,7 @@ public sealed partial class MainViewModel : ObservableObject
                           ?? Path.Combine(engine?.WorkingDirectory ?? AppContext.BaseDirectory,
                               "output");
         IsLogOpen = true;
-        StageText = "Idle";
+        StageText = Strings.IDLE;
 
         Items.CollectionChanged += OnItemsChanged;
 
@@ -49,8 +49,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    private string NoEngineMessage =>
-        $"No engine at {EnginePath}. Point Settings > Engine at charlotte-cli.exe.";
+    private string NoEngineMessage => Strings.NO_ENGINE_LOG(EnginePath);
 
     public ObservableCollection<QueueItem> Items { get; } = [];
 
@@ -113,7 +112,7 @@ public sealed partial class MainViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CancelLabel))]
     public partial bool CanForceStop { get; private set; }
 
-    public string CancelLabel => CanForceStop ? "Force stop" : "Cancel";
+    public string CancelLabel => CanForceStop ? Strings.FORCE_STOP : Strings.CANCEL;
 
     public bool CanRunEngine => HasEngine && !IsRunning;
 
@@ -134,8 +133,8 @@ public sealed partial class MainViewModel : ObservableObject
         {
             var checkedCount = Items.Count(item => item.IsChecked);
             return checkedCount > 0 && checkedCount < Items.Count
-                ? $"Start ({checkedCount} checked)"
-                : "Start";
+                ? Strings.START_CHECKED(checkedCount)
+                : Strings.START;
         }
     }
 
@@ -146,11 +145,11 @@ public sealed partial class MainViewModel : ObservableObject
             var done = Items.Count(item => item.Status == ItemStatus.Done);
             var missing = Items.Count(item => item.Key == KeyState.Missing);
             var unsubtitled = Items.Count(item => item.HasSubtitles == false);
-            var summary =
-                $"{Items.Count} files · {done} done · {missing} missing key · {unsubtitled} without subtitles";
+            var summary = Strings.SUMMARY(Items.Count, done, missing, unsubtitled);
             if (Options.UseVapourSynth)
             {
-                summary += $" · {Items.Count(item => !item.HasVsScript)} unfiltered";
+                summary += " · " + Strings.SUMMARY_UNFILTERED(
+                    Items.Count(item => !item.HasVsScript));
             }
 
             return summary;
@@ -162,7 +161,7 @@ public sealed partial class MainViewModel : ObservableObject
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
         if (IsRunning)
         {
-            AppendLog("Wait for the current run to finish before changing the source folder.");
+            AppendLog(Strings.BUSY_SOURCE_FOLDER_LOG);
             return;
         }
 
@@ -181,7 +180,7 @@ public sealed partial class MainViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(paths);
         if (IsRunning)
         {
-            AppendLog("Wait for the current run to finish before adding files.");
+            AppendLog(Strings.BUSY_ADD_FILES_LOG);
             return;
         }
 
@@ -196,7 +195,7 @@ public sealed partial class MainViewModel : ObservableObject
             var fileName = Path.GetFileName(path);
             if (Find(fileName) is not null)
             {
-                AppendLog($"{fileName} is already in the queue.");
+                AppendLog(Strings.ALREADY_QUEUED_LOG(fileName));
                 continue;
             }
 
@@ -233,7 +232,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            AppendLog($"Could not read {directory}: {e.Message}");
+            AppendLog(Strings.FOLDER_UNREADABLE_LOG(directory, e.Message));
             return null;
         }
     }
@@ -290,7 +289,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         Engine = engine;
         EngineVersion = null;
-        AppendLog(engine is null ? NoEngineMessage : $"Engine: {engine.FileName}");
+        AppendLog(engine is null ? NoEngineMessage : Strings.ENGINE_LOG(engine.FileName));
     }
 
     public void SaveSettings()
@@ -303,7 +302,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            AppendLog($"Could not save settings: {e.Message}");
+            AppendLog(Strings.SETTINGS_UNSAVED_LOG(e.Message));
         }
     }
 
@@ -350,7 +349,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         else
         {
-            AppendLog($"Output folder does not exist yet: {OutputDirectory}");
+            AppendLog(Strings.NO_OUTPUT_FOLDER_LOG(OutputDirectory));
         }
     }
 
@@ -363,7 +362,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         else
         {
-            AppendLog($"No keys recovered yet. They will be written to {RecoveredKeysPath}");
+            AppendLog(Strings.NO_RECOVERED_KEYS_LOG(RecoveredKeysPath));
         }
     }
 
@@ -420,7 +419,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(OutputDirectory))
         {
-            AppendLog("Choose an output folder before converting.");
+            AppendLog(Strings.CHOOSE_OUTPUT_LOG);
             return;
         }
 
@@ -445,7 +444,7 @@ public sealed partial class MainViewModel : ObservableObject
         var leftOut = Items.Count(item => item.IsChecked && item.StreamCipher);
         if (leftOut > 0)
         {
-            AppendLog($"Left out {leftOut} 7.1 file(s), whose keys cannot be recovered.");
+            AppendLog(Strings.LEFT_OUT_STREAM_CIPHER_LOG(leftOut));
         }
 
         Enqueue(targets);
@@ -479,13 +478,13 @@ public sealed partial class MainViewModel : ObservableObject
         {
             source.Cancel();
             CanForceStop = client is not null;
-            StageText = "Cancelling…";
+            StageText = Strings.CANCELLING;
         }
         else if (client is { } engine && !forceStopped)
         {
             forceStopped = true;
             engine.Kill();
-            StageText = "Stopping…";
+            StageText = Strings.STOPPING;
         }
     }
 
@@ -497,7 +496,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (current is { Status: ItemStatus.Running } item)
         {
             client?.SendSkip(item.FileName);
-            item.Detail = "Skipping…";
+            item.Detail = Strings.SKIPPING_DETAIL;
         }
     }
 
@@ -521,7 +520,7 @@ public sealed partial class MainViewModel : ObservableObject
         await RunEngineAsync(["--update"], 0).ConfigureAwait(true);
         if (LatestUpdate is not { } update)
         {
-            AppendLog("The engine did not report an update result.");
+            AppendLog(Strings.NO_UPDATE_RESULT_LOG);
             return;
         }
 
@@ -548,18 +547,20 @@ public sealed partial class MainViewModel : ObservableObject
                 var written = await Updater
                     .InstallLatestAsync(AppContext.BaseDirectory, status, token)
                     .ConfigureAwait(true);
-                AppendLog($"Installed {written.Count} file(s). Restarting.");
+                AppendLog(Strings.UPDATE_INSTALLED_LOG(written.Count));
                 installed = true;
             }
             catch (OperationCanceledException)
             {
-                AppendLog(token.IsCancellationRequested ? "Update cancelled." : "Update timed out.");
+                AppendLog(token.IsCancellationRequested
+                    ? Strings.UPDATE_CANCELLED_LOG
+                    : Strings.UPDATE_TIMED_OUT_LOG);
             }
             catch (Exception e) when (e is HttpRequestException or IOException
                                           or InvalidDataException or UnauthorizedAccessException
                                           or JsonException)
             {
-                AppendLog($"Update failed: {e.Message}");
+                AppendLog(Strings.UPDATE_FAILED_LOG(e.Message));
             }
         }).ConfigureAwait(true);
         return installed;
@@ -586,7 +587,7 @@ public sealed partial class MainViewModel : ObservableObject
             cancellation = null;
             CanForceStop = false;
             IsRunning = false;
-            StageText = "Idle";
+            StageText = Strings.IDLE;
         }
     }
 
@@ -627,12 +628,12 @@ public sealed partial class MainViewModel : ObservableObject
             var exitCode = await exit.ConfigureAwait(true);
             if (forceStopped)
             {
-                AppendLog("Engine stopped.");
+                AppendLog(Strings.ENGINE_STOPPED_LOG);
             }
             else if (exitCode != 0)
             {
-                failure = $"Engine exited with code {exitCode}";
-                AppendLog($"Engine exited with code {exitCode}.");
+                failure = Strings.ENGINE_EXITED_DETAIL(exitCode);
+                AppendLog(Strings.ENGINE_EXITED_LOG(exitCode));
 
                 // The engine exits 1 after a batch in which any file failed, and those rows
                 // already carry the error events. The stderr tail is for a run that never opened
@@ -648,14 +649,14 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (Win32Exception e)
         {
-            failure = "Engine could not be started";
-            AppendLog($"Could not start the engine '{profile.FileName}': {e.Message}");
+            failure = Strings.ENGINE_NOT_STARTED_DETAIL;
+            AppendLog(Strings.ENGINE_START_FAILED_LOG(profile.FileName, e.Message));
         }
         catch (Exception)
         {
             // A bug in Apply ends the run, and disposing the client kills the engine. The
             // unhandled-error dialog shows the exception.
-            failure = "Stopped by an unexpected error";
+            failure = Strings.UNEXPECTED_ERROR_DETAIL;
             throw;
         }
         finally
@@ -695,8 +696,8 @@ public sealed partial class MainViewModel : ObservableObject
                 EngineVersion = session.Version;
                 if (session.Protocol != EngineEvent.ProtocolVersion)
                 {
-                    AppendLog(
-                        $"Engine speaks protocol {session.Protocol}; this GUI expects {EngineEvent.ProtocolVersion}.");
+                    AppendLog(Strings.PROTOCOL_MISMATCH_LOG(session.Protocol,
+                        EngineEvent.ProtocolVersion));
                 }
 
                 break;
@@ -764,9 +765,9 @@ public sealed partial class MainViewModel : ObservableObject
                 skippedItem.Status = ItemStatus.Skipped;
                 skippedItem.Detail = skipped.Reason switch
                 {
-                    "exists" => "Already exists",
-                    "no_key" => "No key",
-                    "requested" => "Skipped on request",
+                    "exists" => Strings.SKIP_EXISTS_DETAIL,
+                    "no_key" => Strings.SKIP_NO_KEY_DETAIL,
+                    "requested" => Strings.SKIP_REQUESTED_DETAIL,
                     _ => skipped.Reason,
                 };
                 break;
@@ -810,22 +811,21 @@ public sealed partial class MainViewModel : ObservableObject
                         cracked.Key = KeyState.Missing;
                     }
 
-                    AppendLog($"{crack.File}: key not recoverable — {crack.Reason}");
+                    AppendLog(Strings.KEY_NOT_RECOVERABLE_LOG(crack.File, crack.Reason));
                 }
 
                 break;
 
             case CrackSummaryEvent summary:
-                AppendLog(
-                    $"Recovered {summary.Recovered} key(s), {summary.Unrecovered} not recoverable.");
+                AppendLog(Strings.CRACK_SUMMARY_LOG(summary.Recovered, summary.Unrecovered));
                 break;
 
             case UpdateEvent update:
                 AppendLog(update.Available
-                    ? $"Charlotte {update.Latest} is available (running {update.Current})."
+                    ? Strings.UPDATE_AVAILABLE_LOG(update.Latest, update.Current)
                     : update.Reason is { Length: > 0 } reason
-                        ? $"Update check failed: {reason}"
-                        : $"Charlotte {update.Current} is up to date.");
+                        ? Strings.UPDATE_CHECK_FAILED_LOG(reason)
+                        : Strings.UP_TO_DATE_LOG(update.Current));
                 LatestUpdate = update;
                 break;
 
@@ -835,7 +835,7 @@ public sealed partial class MainViewModel : ObservableObject
                 break;
 
             case UnknownEvent unknown when unknown.Type.Length > 0:
-                AppendLog($"Engine sent an event kind this GUI does not know: {unknown.Type}");
+                AppendLog(Strings.UNKNOWN_EVENT_LOG(unknown.Type));
                 break;
         }
     }
@@ -857,21 +857,21 @@ public sealed partial class MainViewModel : ObservableObject
         {
             if (RecoveredKeys.Add(RecoveredKeysPath, stem, videoKey) is { } setAside)
             {
-                AppendLog($"{RecoveredKeysPath} could not be read. It is now {setAside}, and a new file was started.");
+                AppendLog(Strings.RECOVERED_KEYS_SET_ASIDE_LOG(RecoveredKeysPath, setAside));
             }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            AppendLog($"Could not write {RecoveredKeysPath}: {e.Message}");
+            AppendLog(Strings.RECOVERED_KEYS_UNWRITTEN_LOG(RecoveredKeysPath, e.Message));
         }
     }
 
     private static string StageName(string stage) => stage switch
     {
-        "demux" => "Demuxing",
-        "crack" => "Recovering key",
-        "ffmpeg" => "Encoding",
-        "subtitles" => "Updating subtitles",
+        "demux" => Strings.STAGE_DEMUX,
+        "crack" => Strings.STAGE_CRACK,
+        "ffmpeg" => Strings.STAGE_FFMPEG,
+        "subtitles" => Strings.STAGE_SUBTITLES,
         _ => stage,
     };
 

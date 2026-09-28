@@ -5,26 +5,20 @@
                     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                     xmlns:local="clr-namespace:MonsieurVerite"
                     xmlns:vm="clr-namespace:MonsieurVerite.ViewModels"
-                    xmlns:sys="clr-namespace:System;assembly=System.Runtime"
                     mc:Ignorable="d"
                     d:DataContext="{d:DesignInstance Type=vm:RunOptions}"
-                    Title="Settings" Width="600">
+                    Title="{x:Static local:Strings.SETTINGS_TITLE}" Width="600">
 
     <Grid>
         <StackPanel Style="{StaticResource DialogRoot}">
             <StackPanel.Resources>
                 <Style TargetType="TextBlock" BasedOn="{StaticResource OptionLabel}" />
-                <sys:String x:Key="DefaultAudioTip">All audio tracks are muxed. The selected audio language will be set as default option.</sys:String>
-                <sys:String x:Key="DefaultSubtitleTip">All subtitles are muxed. The selected subtitle language will be set as default option.</sys:String>
-                <sys:String x:Key="AudioCodecTip">Flac is lossless, the best default option for archival purposes. Opus is 256 kbps VBR and is 3-5x smaller in size while perceptually transparent, but is still lossy technically.</sys:String>
-                <sys:String x:Key="CrfTip">x265 quality, 0 to 51. Lower is better in quality and bigger in size.</sys:String>
-                <sys:String x:Key="PresetTip">x265 speed against efficiency. Slower presets take longer for a smaller file at the same quality.</sys:String>
-                <sys:String x:Key="EngineTip">Path to charlotte-cli.exe.</sys:String>
-                <sys:String x:Key="X265ParamsTip">Built-in tuning for the preset. 'ultrafast' to 'medium' uses the same neutral tuning parameters that improve picture quality without affecting encode speed. 'slow' to 'placebo' uses the same but with added parameters for better quality.</sys:String>
             </StackPanel.Resources>
 
-            <TextBlock Style="{StaticResource DialogTitle}" Text="Settings" Margin="0,0,0,16" />
-            <TextBlock Style="{StaticResource SectionLabel}" Text="ENGINE" />
+            <TextBlock Style="{StaticResource DialogTitle}"
+                       Text="{x:Static local:Strings.SETTINGS_TITLE}" Margin="0,0,0,16" />
+            <TextBlock Style="{StaticResource SectionLabel}"
+                       Text="{x:Static local:Strings.ENGINE_SECTION}" />
             <Grid Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="110" />
@@ -36,15 +30,17 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Column="0" Text="Engine" ToolTip="{StaticResource EngineTip}" />
+                <TextBlock Grid.Column="0" Text="{x:Static local:Strings.ENGINE}"
+                           ToolTip="{x:Static local:Strings.ENGINE_TIP}" />
                 <TextBox x:Name="EngineBox" Grid.Column="1" Style="{StaticResource OptionField}"
-                         ToolTip="{StaticResource EngineTip}" />
-                <Button Grid.Column="2" Content="Browse…" Style="{StaticResource ActionButton}"
+                         ToolTip="{x:Static local:Strings.ENGINE_TIP}" />
+                <Button Grid.Column="2" Content="{x:Static local:Strings.BROWSE}"
+                        Style="{StaticResource ActionButton}"
                         Margin="8,0,0,8" VerticalAlignment="Top" Click="Browse_Click" />
                 <CheckBox x:Name="UpdateCheck" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
                           Style="{StaticResource OptionCheck}"
-                          Content="Check for updates on startup"
-                          ToolTip="Checks for a new Charlotte release each time the app opens." />
+                          Content="{x:Static local:Strings.CHECK_FOR_UPDATES_ON_STARTUP}"
+                          ToolTip="{x:Static local:Strings.CHECK_FOR_UPDATES_ON_STARTUP_TIP}" />
             </Grid>
 
             <Grid Margin="0,0,0,10">
@@ -59,7 +55,8 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Grid.Column="0">
-                    <TextBlock Style="{StaticResource SectionLabel}" Text="MKV" />
+                    <TextBlock Style="{StaticResource SectionLabel}"
+                               Text="{x:Static local:Strings.MKV_SECTION}" />
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="100" />
@@ -71,62 +68,71 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Default audio"
-                                   ToolTip="{StaticResource DefaultAudioTip}" />
+                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="{x:Static local:Strings.DEFAULT_AUDIO}"
+                                   ToolTip="{x:Static local:Strings.DEFAULT_AUDIO_TIP}" />
                         <ComboBox Grid.Row="0" Grid.Column="1" Style="{StaticResource OptionCombo}"
                                   ItemsSource="{x:Static vm:RunOptions.AudioLanguages}"
                                   DisplayMemberPath="Display"
                                   SelectedValuePath="Code" SelectedValue="{Binding DefaultAudio}"
-                                  ToolTip="{StaticResource DefaultAudioTip}" />
+                                  ToolTip="{x:Static local:Strings.DEFAULT_AUDIO_TIP}" />
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Default subtitle"
-                                   ToolTip="{StaticResource DefaultSubtitleTip}" />
+                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="{x:Static local:Strings.DEFAULT_SUBTITLE}"
+                                   ToolTip="{x:Static local:Strings.DEFAULT_SUBTITLE_TIP}" />
                         <ComboBox Grid.Row="1" Grid.Column="1" Style="{StaticResource OptionCombo}"
                                   ItemsSource="{x:Static vm:RunOptions.SubtitleLanguages}"
                                   DisplayMemberPath="Display"
                                   SelectedValuePath="Code"
                                   SelectedValue="{Binding DefaultSubtitle}"
-                                  ToolTip="{StaticResource DefaultSubtitleTip}" />
+                                  ToolTip="{x:Static local:Strings.DEFAULT_SUBTITLE_TIP}" />
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Audio codec"
-                                   ToolTip="{StaticResource AudioCodecTip}" />
+                        <TextBlock Grid.Row="2" Grid.Column="0"
+                                   Text="{x:Static local:Strings.AUDIO_CODEC}"
+                                   ToolTip="{x:Static local:Strings.AUDIO_CODEC_TIP}" />
                         <ComboBox Grid.Row="2" Grid.Column="1" Style="{StaticResource OptionCombo}"
                                   Width="100"
                                   HorizontalAlignment="Left"
                                   ItemsSource="{x:Static vm:RunOptions.AudioCodecs}"
                                   SelectedItem="{Binding AudioCodec}"
-                                  ToolTip="{StaticResource AudioCodecTip}" />
+                                  ToolTip="{x:Static local:Strings.AUDIO_CODEC_TIP}" />
                     </Grid>
                 </StackPanel>
 
                 <StackPanel Grid.Row="0" Grid.Column="2">
-                    <TextBlock Style="{StaticResource SectionLabel}" Text="RUN" />
-                    <CheckBox Style="{StaticResource OptionCheck}" Content="Skip existing"
+                    <TextBlock Style="{StaticResource SectionLabel}"
+                               Text="{x:Static local:Strings.RUN_SECTION}" />
+                    <CheckBox Style="{StaticResource OptionCheck}"
+                              Content="{x:Static local:Strings.SKIP_EXISTING}"
                               IsChecked="{Binding SkipExisting}"
-                              ToolTip="Skips any file whose .mkv is already in the output folder. Useful for resuming an interrupted batch." />
-                    <CheckBox Style="{StaticResource OptionCheck}" Content="Flat output"
+                              ToolTip="{x:Static local:Strings.SKIP_EXISTING_TIP}" />
+                    <CheckBox Style="{StaticResource OptionCheck}"
+                              Content="{x:Static local:Strings.FLAT_OUTPUT}"
                               IsChecked="{Binding FlatOutput}"
-                              ToolTip="Writes each .mkv straight into the output folder instead of giving every cutscene its own subfolder." />
-                    <CheckBox Style="{StaticResource OptionCheck}" Content="Keep intermediates"
+                              ToolTip="{x:Static local:Strings.FLAT_OUTPUT_TIP}" />
+                    <CheckBox Style="{StaticResource OptionCheck}"
+                              Content="{x:Static local:Strings.KEEP_INTERMEDIATES}"
                               IsChecked="{Binding KeepIntermediates}"
-                              ToolTip="Leaves the decrypted intermediate files (.ivf, .hca, and .ass) on disk after muxing, instead of deleting them." />
+                              ToolTip="{x:Static local:Strings.KEEP_INTERMEDIATES_TIP}" />
                 </StackPanel>
 
                 <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,10,0,0">
-                    <TextBlock Style="{StaticResource SectionLabel}" Text="VIDEO" />
+                    <TextBlock Style="{StaticResource SectionLabel}"
+                               Text="{x:Static local:Strings.VIDEO_SECTION}" />
                     <CheckBox Style="{StaticResource OptionCheck}"
-                              Content="Apply VapourSynth filter"
+                              Content="{x:Static local:Strings.APPLY_VAPOUR_SYNTH}"
                               IsChecked="{Binding UseVapourSynth}"
-                              ToolTip="Enable VapourSynth filtering to fix video artifacts (mostly banding) due to Hoyo's poor encoding. Very slow and heavy on CPU, can take up to an hour, varied by video length." />
+                              ToolTip="{x:Static local:Strings.APPLY_VAPOUR_SYNTH_TIP}" />
                     <CheckBox Style="{StaticResource OptionCheck}"
-                              Content="Burn subtitle into video"
+                              Content="{x:Static local:Strings.HARD_SUB}"
                               IsChecked="{Binding HardSub}"
-                              ToolTip="Burn the subtitle into the video. Good for when you're using it somewhere that doesn't support soft subtitles. Re-encodes the video with the x265 settings to the right. No soft subtitles will be muxed." />
+                              ToolTip="{x:Static local:Strings.HARD_SUB_TIP}" />
                 </StackPanel>
 
                 <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,10,0,0"
                             IsEnabled="{Binding Reencodes}">
-                    <TextBlock Style="{StaticResource SectionLabel}" Text="X265" />
+                    <TextBlock Style="{StaticResource SectionLabel}"
+                               Text="{x:Static local:Strings.X265_SECTION}" />
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -135,38 +141,43 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <TextBlock Grid.Column="0" Text="CRF" ToolTip="{StaticResource CrfTip}" />
+                        <TextBlock Grid.Column="0" Text="{x:Static local:Strings.CRF}"
+                                   ToolTip="{x:Static local:Strings.CRF_TIP}" />
                         <TextBox Grid.Column="1" Style="{StaticResource OptionField}" Width="88"
                                  Text="{Binding Crf, StringFormat={}{0:0.#}}"
-                                 ToolTip="{StaticResource CrfTip}" />
+                                 ToolTip="{x:Static local:Strings.CRF_TIP}" />
 
-                        <TextBlock Grid.Column="2" Text="Preset" Margin="12,0,8,8"
-                                   ToolTip="{StaticResource PresetTip}" />
+                        <TextBlock Grid.Column="2" Text="{x:Static local:Strings.PRESET}"
+                                   Margin="12,0,8,8"
+                                   ToolTip="{x:Static local:Strings.PRESET_TIP}" />
                         <ComboBox Grid.Column="3" Style="{StaticResource OptionCombo}"
                                   ItemsSource="{x:Static vm:RunOptions.Presets}"
                                   SelectedItem="{Binding Preset}"
-                                  ToolTip="{StaticResource PresetTip}" />
+                                  ToolTip="{x:Static local:Strings.PRESET_TIP}" />
                     </Grid>
 
-                    <TextBlock Text="x265 params" Margin="0,0,0,6"
-                               ToolTip="{StaticResource X265ParamsTip}" />
+                    <TextBlock Text="{x:Static local:Strings.X265_PARAMS}" Margin="0,0,0,6"
+                               ToolTip="{x:Static local:Strings.X265_PARAMS_TIP}" />
                     <TextBox Style="{StaticResource OptionField}"
                              Height="118" AcceptsReturn="True" VerticalContentAlignment="Top"
                              VerticalScrollBarVisibility="Auto"
                              FontFamily="{StaticResource MonoFont}"
                              Text="{Binding X265ParamLines, UpdateSourceTrigger=PropertyChanged}"
-                             ToolTip="{StaticResource X265ParamsTip}" />
+                             ToolTip="{x:Static local:Strings.X265_PARAMS_TIP}" />
                 </StackPanel>
             </Grid>
 
             <Grid>
-                <Button Content="Reset to defaults" Style="{StaticResource PrimaryButton}"
+                <Button Content="{x:Static local:Strings.RESET_TO_DEFAULTS}"
+                        Style="{StaticResource PrimaryButton}"
                         HorizontalAlignment="Left" Click="Reset_Click"
-                        ToolTip="Every setting in this dialog back to what a fresh install has. Nothing is saved until OK." />
+                        ToolTip="{x:Static local:Strings.RESET_TO_DEFAULTS_TIP}" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="OK" Style="{StaticResource PrimaryButton}" IsDefault="True"
+                    <Button Content="{x:Static local:Strings.OK}"
+                            Style="{StaticResource PrimaryButton}" IsDefault="True"
                             Click="Ok_Click" />
-                    <Button Content="Cancel" Style="{StaticResource ActionButton}" IsCancel="True"
+                    <Button Content="{x:Static local:Strings.CANCEL}"
+                            Style="{StaticResource ActionButton}" IsCancel="True"
                             Margin="8,0,0,0" />
                 </StackPanel>
             </Grid>

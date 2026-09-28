@@ -62,12 +62,12 @@ public sealed partial class QueueItem : ObservableObject
         System.Version.TryParse(Version, out var parsed) ? parsed : new System.Version(0, 0);
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSubtitles), nameof(SubtitleLanguages))]
+    [NotifyPropertyChangedFor(nameof(HasSubtitles), nameof(SubtitlesTip))]
     public partial IReadOnlyList<string>? Subtitles { get; set; }
 
     public bool? HasSubtitles => Subtitles is null ? null : Subtitles.Count > 0;
 
-    public string SubtitleLanguages => Subtitles is null ? "" : string.Join(", ", Subtitles);
+    public string SubtitlesTip => Strings.CACHED_SUBTITLES_TIP(string.Join(", ", Subtitles ?? []));
 
     [ObservableProperty] public partial bool HasVsScript { get; set; }
 
@@ -87,13 +87,13 @@ public sealed partial class QueueItem : ObservableObject
     public string StatusLabel => Status switch
     {
         ItemStatus.Running when Detail.Length > 0 => Detail,
-        ItemStatus.Pending => "Pending",
-        ItemStatus.Queued => "Queued",
-        ItemStatus.Running => "Running",
-        ItemStatus.Done => "Done",
-        ItemStatus.Skipped => "Skipped",
-        ItemStatus.Error => "Error",
-        ItemStatus.Cancelled => "Cancelled",
+        ItemStatus.Pending => Strings.STATUS_PENDING,
+        ItemStatus.Queued => Strings.STATUS_QUEUED,
+        ItemStatus.Running => Strings.STATUS_RUNNING,
+        ItemStatus.Done => Strings.STATUS_DONE,
+        ItemStatus.Skipped => Strings.STATUS_SKIPPED,
+        ItemStatus.Error => Strings.STATUS_ERROR,
+        ItemStatus.Cancelled => Strings.STATUS_CANCELLED,
         _ => "",
     };
 

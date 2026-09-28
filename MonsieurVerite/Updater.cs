@@ -20,14 +20,12 @@ public static class Updater
         ArgumentException.ThrowIfNullOrWhiteSpace(appDirectory);
         ArgumentNullException.ThrowIfNull(status);
 
-        status.Report("Finding download…");
+        status.Report(Strings.FINDING_DOWNLOAD);
         var asset = await FindZipAsync(cancellationToken).ConfigureAwait(false)
-                    ?? throw new InvalidDataException(
-                        "The latest release has no .zip asset to install.");
+                    ?? throw new InvalidDataException(Strings.UPDATE_NO_ZIP);
         if (asset.Sha256 is not { } expected)
         {
-            throw new InvalidDataException(
-                "The latest release publishes no SHA-256 digest for its .zip, so it cannot be verified.");
+            throw new InvalidDataException(Strings.UPDATE_NO_DIGEST);
         }
 
         var zipPath = Path.Combine(Path.GetTempPath(), $"charlotte-update-{Guid.NewGuid():N}.zip");
@@ -37,11 +35,10 @@ public static class Updater
                 .ConfigureAwait(false);
             if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidDataException(
-                    $"The download does not match the release's SHA-256 digest (expected {expected}, got {actual}).");
+                throw new InvalidDataException(Strings.UPDATE_DIGEST_MISMATCH(expected, actual));
             }
 
-            status.Report("Installing…");
+            status.Report(Strings.INSTALLING);
             return Install(zipPath, appDirectory);
         }
         finally
@@ -122,8 +119,8 @@ public static class Updater
             hash.AppendData(buffer, 0, read);
             done += read;
             var text = total is { } bytes
-                ? $"Downloading · {done * 100 / bytes}%"
-                : $"Downloading · {done >> 20} MB";
+                ? Strings.DOWNLOADING_PERCENT(done * 100 / bytes)
+                : Strings.DOWNLOADING_MEGABYTES(done >> 20);
             if (text != shown)
             {
                 shown = text;
@@ -148,7 +145,7 @@ public static class Updater
             .ToList();
         if (entries.Count == 0)
         {
-            throw new InvalidDataException("The update archive is empty.");
+            throw new InvalidDataException(Strings.UPDATE_ARCHIVE_EMPTY);
         }
 
         var prefix = CommonFolder(entries.Select(file => file.Name));
@@ -163,8 +160,7 @@ public static class Updater
                 if (!target.StartsWith(root + Path.DirectorySeparatorChar,
                         StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new InvalidDataException(
-                        $"The update archive tries to write outside the app folder: {name}");
+                    throw new InvalidDataException(Strings.UPDATE_ARCHIVE_ESCAPES(name));
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
@@ -189,9 +185,8 @@ public static class Updater
             }
 
             throw new IOException(
-                $"{failure.Message} Restoring the previous version also failed for "
-                + $"{string.Join(", ", unrestored.Select(Path.GetFileName))}; "
-                + "reinstall from the release zip.",
+                Strings.UPDATE_ROLLBACK_FAILED(failure.Message,
+                    string.Join(", ", unrestored.Select(Path.GetFileName))),
                 failure);
         }
 

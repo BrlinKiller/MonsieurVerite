@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MonsieurVerite"
         xmlns:vm="clr-namespace:MonsieurVerite.ViewModels"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
@@ -48,20 +49,22 @@
                     <Border Style="{StaticResource ToolbarDivider}" />
                     <Button Style="{StaticResource ToolbarButton}"
                             Command="{Binding OpenFolderCommand}"
-                            ToolTip="Open folder (Ctrl+O)">
+                            ToolTip="{x:Static local:Strings.OPEN_FOLDER_TIP}">
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource Icon}"
                                   Data="{StaticResource FolderOpenIcon}" Margin="0,0,8,0" />
-                            <TextBlock Text="Open folder" VerticalAlignment="Center" />
+                            <TextBlock Text="{x:Static local:Strings.OPEN_FOLDER}"
+                                       VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
                             Command="{Binding BrowseFilesCommand}"
-                            ToolTip="Add files (Ctrl+Shift+O)">
+                            ToolTip="{x:Static local:Strings.ADD_FILES_TIP}">
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource Icon}"
                                   Data="{StaticResource FilePlusIcon}" Margin="0,0,8,0" />
-                            <TextBlock Text="Add files" VerticalAlignment="Center" />
+                            <TextBlock Text="{x:Static local:Strings.ADD_FILES}"
+                                       VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -69,23 +72,25 @@
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                     <Button Style="{StaticResource ToolbarIconButton}"
                             Command="{Binding EditSettingsCommand}"
-                            ToolTip="Settings (Ctrl+,)">
+                            ToolTip="{x:Static local:Strings.SETTINGS_TIP}">
                         <Path Style="{StaticResource Icon}" Data="{StaticResource GearIcon}" />
                     </Button>
                     <Button x:Name="MoreButton" Style="{StaticResource ToolbarIconButton}"
-                            Click="More_Click" ToolTip="More">
+                            Click="More_Click" ToolTip="{x:Static local:Strings.MORE_TIP}">
                         <Button.ContextMenu>
                             <ContextMenu x:Name="MoreMenu">
-                                <MenuItem Header="Open output folder"
+                                <MenuItem Header="{x:Static local:Strings.OPEN_OUTPUT_FOLDER}"
                                           Command="{Binding OpenOutputFolderCommand}" />
-                                <MenuItem Header="Show recovered keys"
+                                <MenuItem Header="{x:Static local:Strings.SHOW_RECOVERED_KEYS}"
                                           Command="{Binding ShowRecoveredKeysCommand}" />
                                 <Separator />
-                                <MenuItem Header="Check for updates…"
+                                <MenuItem Header="{x:Static local:Strings.CHECK_FOR_UPDATES}"
                                           Command="{Binding CheckForUpdatesCommand}" />
-                                <MenuItem Header="About Charlotte" Click="About_Click" />
+                                <MenuItem Header="{x:Static local:Strings.ABOUT_CHARLOTTE}"
+                                          Click="About_Click" />
                                 <Separator />
-                                <MenuItem Header="Exit" Click="Exit_Click" />
+                                <MenuItem Header="{x:Static local:Strings.EXIT}"
+                                          Click="Exit_Click" />
                             </ContextMenu>
                         </Button.ContextMenu>
                         <Path Style="{StaticResource Icon}" Data="{StaticResource MoreIcon}" />
@@ -128,16 +133,21 @@
 
                 <DataGrid.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="Remove from queue"
+                        <MenuItem Header="{x:Static local:Strings.REMOVE_FROM_QUEUE}"
                                   Command="{Binding RemoveCheckedCommand}" />
-                        <MenuItem Header="Recover key" Command="{Binding RecoverKeysCommand}" />
-                        <MenuItem Header="Set key manually…" Command="{Binding SetKeyCommand}" />
-                        <MenuItem Header="Copy video key" Command="{Binding CopyVideoKeyCommand}" />
-                        <MenuItem Header="Retry failed" Command="{Binding RetryFailedCommand}" />
+                        <MenuItem Header="{x:Static local:Strings.RECOVER_KEY}"
+                                  Command="{Binding RecoverKeysCommand}" />
+                        <MenuItem Header="{x:Static local:Strings.SET_KEY_MANUALLY}"
+                                  Command="{Binding SetKeyCommand}" />
+                        <MenuItem Header="{x:Static local:Strings.COPY_VIDEO_KEY}"
+                                  Command="{Binding CopyVideoKeyCommand}" />
+                        <MenuItem Header="{x:Static local:Strings.RETRY_FAILED}"
+                                  Command="{Binding RetryFailedCommand}" />
                         <Separator />
-                        <MenuItem Header="Open output folder"
+                        <MenuItem Header="{x:Static local:Strings.OPEN_OUTPUT_FOLDER}"
                                   Command="{Binding OpenOutputFolderCommand}" />
-                        <MenuItem Header="Uncheck all" Command="{Binding UncheckAllCommand}" />
+                        <MenuItem Header="{x:Static local:Strings.UNCHECK_ALL}"
+                                  Command="{Binding UncheckAllCommand}" />
                     </ContextMenu>
                 </DataGrid.ContextMenu>
 
@@ -147,25 +157,32 @@
                                             HeaderTemplate="{StaticResource QueueCheckHeader}"
                                             CellStyle="{StaticResource QueueCheckCellStyle}"
                                             CellTemplate="{StaticResource QueueCheckCell}" />
-                    <DataGridTemplateColumn Header="NAME" Width="*" MinWidth="250"
+                    <DataGridTemplateColumn Header="{x:Static local:Strings.COLUMN_NAME}"
+                                            Width="*" MinWidth="250"
                                             SortMemberPath="FileName"
                                             CellTemplate="{StaticResource QueueNameCell}" />
-                    <DataGridTemplateColumn Header="SIZE" Width="90" MinWidth="60"
+                    <DataGridTemplateColumn Header="{x:Static local:Strings.COLUMN_SIZE}"
+                                            Width="90" MinWidth="60"
                                             SortMemberPath="Size"
                                             CellTemplate="{StaticResource QueueSizeCell}" />
-                    <DataGridTemplateColumn Header="VERSION" Width="90" MinWidth="65"
+                    <DataGridTemplateColumn Header="{x:Static local:Strings.COLUMN_VERSION}"
+                                            Width="90" MinWidth="65"
                                             SortMemberPath="VersionOrder"
                                             CellTemplate="{StaticResource QueueVersionCell}" />
-                    <DataGridTemplateColumn Header="KEY" Width="90" MinWidth="80"
+                    <DataGridTemplateColumn Header="{x:Static local:Strings.COLUMN_KEY}"
+                                            Width="90" MinWidth="80"
                                             SortMemberPath="Key"
                                             CellTemplate="{StaticResource QueueKeyCell}" />
-                    <DataGridTemplateColumn Header="SUBTITLES" Width="90" MinWidth="60"
+                    <DataGridTemplateColumn Header="{x:Static local:Strings.COLUMN_SUBTITLES}"
+                                            Width="90" MinWidth="60"
                                             SortMemberPath="HasSubtitles"
                                             CellTemplate="{StaticResource QueueSubtitlesCell}" />
-                    <DataGridTemplateColumn Header="STATUS" Width="90" MinWidth="80"
+                    <DataGridTemplateColumn Header="{x:Static local:Strings.COLUMN_STATUS}"
+                                            Width="90" MinWidth="80"
                                             SortMemberPath="Status"
                                             CellTemplate="{StaticResource QueueStatusCell}" />
-                    <DataGridTemplateColumn Header="PROGRESS" Width="230" MinWidth="150"
+                    <DataGridTemplateColumn Header="{x:Static local:Strings.COLUMN_PROGRESS}"
+                                            Width="230" MinWidth="150"
                                             SortMemberPath="Progress"
                                             CellTemplate="{StaticResource QueueProgressCell}" />
                 </DataGrid.Columns>
@@ -176,10 +193,10 @@
                       Height="40"
                       Stroke="{StaticResource LineStrongBrush}" StrokeThickness="1.5"
                       Margin="0,0,0,14" />
-                <TextBlock Text="Nothing to report yet" FontSize="14"
+                <TextBlock Text="{x:Static local:Strings.EMPTY_QUEUE_TITLE}" FontSize="14"
                            Foreground="{StaticResource DimBrush}"
                            HorizontalAlignment="Center" />
-                <TextBlock Text="Drop a folder or .usm files here, or open a folder with Ctrl+O"
+                <TextBlock Text="{x:Static local:Strings.EMPTY_QUEUE_HINT}"
                            FontSize="12"
                            Foreground="{StaticResource FaintBrush}"
                            HorizontalAlignment="Center" Margin="0,6,0,0" />
@@ -195,7 +212,8 @@
                     <StackPanel Orientation="Horizontal">
                         <Path Style="{StaticResource LogChevron}"
                               Data="{StaticResource ChevronDownIcon}" />
-                        <TextBlock Text="Log" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <TextBlock Text="{x:Static local:Strings.LOG}" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
                     </StackPanel>
                 </ToggleButton>
                 <Border Style="{StaticResource LogPane}">
@@ -209,10 +227,13 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="Copy" Click="CopyLog_Click" />
-                                <MenuItem Header="Copy all" Click="CopyAllLog_Click" />
+                                <MenuItem Header="{x:Static local:Strings.COPY}"
+                                          Click="CopyLog_Click" />
+                                <MenuItem Header="{x:Static local:Strings.COPY_ALL}"
+                                          Click="CopyAllLog_Click" />
                                 <Separator />
-                                <MenuItem Header="Clear" Command="{Binding ClearLogCommand}" />
+                                <MenuItem Header="{x:Static local:Strings.CLEAR}"
+                                          Command="{Binding ClearLogCommand}" />
                             </ContextMenu>
                         </ListBox.ContextMenu>
                     </ListBox>
@@ -256,8 +277,9 @@
                                 </Style.Triggers>
                             </Style>
                         </StackPanel.Style>
-                        <Button Content="Skip file" Command="{Binding SkipCommand}"
-                                ToolTip="Drop the file being converted and carry on with the rest" />
+                        <Button Content="{x:Static local:Strings.SKIP_FILE}"
+                                Command="{Binding SkipCommand}"
+                                ToolTip="{x:Static local:Strings.SKIP_FILE_TIP}" />
                         <Button Content="{Binding CancelLabel}" Command="{Binding CancelCommand}"
                                 Margin="8,0,0,0" />
                     </StackPanel>
@@ -269,14 +291,16 @@
                 <Button DockPanel.Dock="Right" Margin="8,0,0,0"
                         Style="{StaticResource ActionButton}"
                         Command="{Binding BrowseOutputCommand}"
-                        ToolTip="Choose the output folder">
+                        ToolTip="{x:Static local:Strings.CHOOSE_OUTPUT_TIP}">
                     <StackPanel Orientation="Horizontal">
                         <Path Style="{StaticResource Icon}" Data="{StaticResource FolderIcon}"
                               Margin="0,0,8,0" />
-                        <TextBlock Text="Browse…" VerticalAlignment="Center" />
+                        <TextBlock Text="{x:Static local:Strings.BROWSE}"
+                                   VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
-                <TextBlock DockPanel.Dock="Left" Text="Output" FontSize="12"
+                <TextBlock DockPanel.Dock="Left" Text="{x:Static local:Strings.OUTPUT}"
+                           FontSize="12"
                            Foreground="{StaticResource FaintBrush}"
                            VerticalAlignment="Center" Margin="0,0,10,0" />
                 <TextBox Style="{StaticResource PathBox}"
@@ -317,9 +341,10 @@
                       Height="36"
                       Stroke="{StaticResource AccentBrush}"
                       Margin="0,0,0,12" />
-                <TextBlock Text="Drop to add to the queue" FontSize="15" FontWeight="SemiBold"
+                <TextBlock Text="{x:Static local:Strings.DROP_TITLE}" FontSize="15"
+                           FontWeight="SemiBold"
                            Foreground="{StaticResource TextBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="A folder replaces the queue; files are added to it" FontSize="12"
+                <TextBlock Text="{x:Static local:Strings.DROP_HINT}" FontSize="12"
                            Foreground="{StaticResource DimBrush}" HorizontalAlignment="Center"
                            Margin="0,6,0,0" />
             </StackPanel>

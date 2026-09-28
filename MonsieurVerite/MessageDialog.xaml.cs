@@ -12,12 +12,12 @@ public partial class MessageDialog : DialogWindow
 
     public static bool Show(
         Window owner, string title, string message,
-        string primary = "OK", string? secondary = null, string? detail = null)
+        string? primary = null, string? secondary = null, string? detail = null)
     {
         var dialog = new MessageDialog { Owner = owner, Title = title };
         dialog.TitleText.Text = title;
         dialog.MessageText.Text = message;
-        dialog.PrimaryButton.Content = primary;
+        dialog.PrimaryButton.Content = primary ?? Strings.OK;
 
         if (secondary is not null)
         {

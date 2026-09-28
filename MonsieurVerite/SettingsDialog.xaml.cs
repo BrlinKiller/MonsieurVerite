@@ -41,8 +41,8 @@ public partial class SettingsDialog : DialogWindow
     {
         var dialog = new OpenFileDialog
         {
-            Filter = "charlotte-cli.exe|charlotte-cli.exe|Programs (*.exe)|*.exe",
-            Title = "Choose the engine",
+            Filter = $"charlotte-cli.exe|charlotte-cli.exe|{Strings.PROGRAMS} (*.exe)|*.exe",
+            Title = Strings.CHOOSE_ENGINE_TITLE,
         };
         if (Path.GetDirectoryName(EngineBox.Text.Trim()) is { } folder && Directory.Exists(folder))
         {

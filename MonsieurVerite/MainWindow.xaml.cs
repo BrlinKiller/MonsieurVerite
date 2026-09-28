@@ -38,7 +38,8 @@ public partial class MainWindow : Window
             ShowSettings = ShowSettings,
             PromptKey = PromptKey,
             CopyText = CopyToClipboard,
-            AnswerQuestion = prompt => MessageDialog.Show(this, "Charlotte", prompt, "Yes", "No"),
+            AnswerQuestion = prompt =>
+                MessageDialog.Show(this, Strings.QUESTION_TITLE, prompt, Strings.YES, Strings.NO),
             ConfirmUpdate = ConfirmUpdate,
             RestartRequested = Restart,
         };
@@ -143,9 +144,9 @@ public partial class MainWindow : Window
         {
             MessageDialog.Show(
                 this,
-                "Could not find Charlotte",
-                "Converting and key recovery are unavailable until charlotte-cli.exe is where the engine setting points. Pick it under Settings > Engine, or put it beside charlotte-gui.exe.",
-                detail: $"Expected: {viewModel.EnginePath}");
+                Strings.ENGINE_MISSING_TITLE,
+                Strings.ENGINE_MISSING_MESSAGE,
+                detail: Strings.ENGINE_MISSING_DETAIL(viewModel.EnginePath));
         }
     }
 
@@ -155,10 +156,11 @@ public partial class MainWindow : Window
     {
         e.Handled = true;
         Debug.WriteLine(e.Exception);
-        viewModel.AppendLog($"Unexpected error: {e.Exception.GetType().Name}: {e.Exception.Message}");
+        viewModel.AppendLog(
+            Strings.UNEXPECTED_ERROR_LOG(e.Exception.GetType().Name, e.Exception.Message));
         if (Dialog is null)
         {
-            MessageDialog.Show(this, "Something went wrong", e.Exception.Message,
+            MessageDialog.Show(this, Strings.UNEXPECTED_ERROR_TITLE, e.Exception.Message,
                 detail: e.Exception.ToString());
         }
     }
@@ -188,9 +190,9 @@ public partial class MainWindow : Window
         {
             var quit = MessageDialog.Show(
                 this,
-                "A run is still in progress",
-                "Quit anyway? The engine will be stopped, and partial output may be left behind.",
-                "Quit", "Keep running");
+                Strings.QUIT_TITLE,
+                Strings.QUIT_MESSAGE,
+                Strings.QUIT, Strings.KEEP_RUNNING);
             if (!quit)
             {
                 e.Cancel = true;
@@ -220,8 +222,8 @@ public partial class MainWindow : Window
         var dialog = new OpenFileDialog
         {
             Multiselect = true,
-            Filter = "USM cutscenes (*.usm)|*.usm|All files|*.*",
-            Title = "Add files to the queue",
+            Filter = $"{Strings.USM_FILES} (*.usm)|*.usm|{Strings.ALL_FILES}|*.*",
+            Title = Strings.ADD_FILES_TITLE,
         };
         if (Directory.Exists(initial))
         {
@@ -251,12 +253,12 @@ public partial class MainWindow : Window
         {
             if (update.Reason is { Length: > 0 } reason)
             {
-                MessageDialog.Show(this, "Could not check for updates", reason);
+                MessageDialog.Show(this, Strings.UPDATE_CHECK_FAILED_TITLE, reason);
             }
             else
             {
-                MessageDialog.Show(this, "Up to date",
-                    $"Charlotte {update.Current} is the latest release.");
+                MessageDialog.Show(this, Strings.UP_TO_DATE_TITLE,
+                    Strings.UP_TO_DATE_MESSAGE(update.Current));
             }
 
             return false;
@@ -265,9 +267,9 @@ public partial class MainWindow : Window
         var notes = update.Notes is { Length: > 1200 } text ? text[..1200] + "…" : update.Notes;
         return MessageDialog.Show(
             this,
-            $"Charlotte {update.Latest} is available",
-            $"Update from {update.Current} → {update.Latest}? Charlotte will automatically restart when done.",
-            "Update", "Cancel", notes);
+            Strings.UPDATE_AVAILABLE_TITLE(update.Latest),
+            Strings.UPDATE_AVAILABLE_MESSAGE(update.Current, update.Latest),
+            Strings.UPDATE, Strings.CANCEL, notes);
     }
 
     private void Restart()
@@ -403,7 +405,7 @@ public partial class MainWindow : Window
         }
         catch (ExternalException e)
         {
-            viewModel.AppendLog($"Could not copy to the clipboard: {e.Message}");
+            viewModel.AppendLog(Strings.CLIPBOARD_FAILED_LOG(e.Message));
         }
     }
 

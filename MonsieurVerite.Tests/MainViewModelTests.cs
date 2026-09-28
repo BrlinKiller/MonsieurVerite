@@ -57,7 +57,7 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
         Assert.Equal(KeyState.Present, keyed.Key);
         Assert.Equal("5.3", keyed.Version);
         Assert.True(keyed.HasSubtitles);
-        Assert.Equal("EN, JP", keyed.SubtitleLanguages);
+        Assert.Equal("Cached subtitles: EN, JP", keyed.SubtitlesTip);
         Assert.True(keyed.HasVsScript);
         Assert.False(keyed.StreamCipher);
 

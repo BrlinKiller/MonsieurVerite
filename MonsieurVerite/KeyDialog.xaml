@@ -2,7 +2,7 @@
                     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:local="clr-namespace:MonsieurVerite"
-                    Title="Set key" Width="460"
+                    Title="{x:Static local:Strings.SET_KEY_TITLE}" Width="460"
                     FocusManager.FocusedElement="{Binding ElementName=KeyBox}">
 
     <local:DialogWindow.Resources>
@@ -24,20 +24,23 @@
             <TextBox x:Name="KeyBox" Style="{StaticResource KeyField}"
                      TextChanged="KeyBox_TextChanged" />
             <TextBlock Style="{StaticResource DialogCaption}" Margin="0,0,0,16"
-                       Text="Format: decimal integer. Example: 6542161829131848" />
+                       Text="{x:Static local:Strings.DECIMAL_KEY_FORMAT}" />
 
             <StackPanel x:Name="AesKeyPanel">
-                <TextBlock Style="{StaticResource OptionLabel}" Text="Video key" Margin="0,0,0,4" />
+                <TextBlock Style="{StaticResource OptionLabel}"
+                           Text="{x:Static local:Strings.VIDEO_KEY}" Margin="0,0,0,4" />
                 <TextBox x:Name="AesKeyBox" Style="{StaticResource KeyField}"
                          TextChanged="KeyBox_TextChanged" />
                 <TextBlock Style="{StaticResource DialogCaption}" Margin="0,0,0,16"
-                           Text="Format: 32 hexadecimal characters. Example: f9e9e1c5cf3a68deffa0a4d3df665836" />
+                           Text="{x:Static local:Strings.HEX_KEY_FORMAT}" />
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
-                <Button x:Name="OkButton" Content="Convert" Style="{StaticResource PrimaryButton}"
+                <Button x:Name="OkButton" Content="{x:Static local:Strings.CONVERT}"
+                        Style="{StaticResource PrimaryButton}"
                         IsDefault="True" IsEnabled="False" Click="Ok_Click" />
-                <Button Content="Cancel" Style="{StaticResource ActionButton}" IsCancel="True"
+                <Button Content="{x:Static local:Strings.CANCEL}"
+                        Style="{StaticResource ActionButton}" IsCancel="True"
                         Margin="8,0,0,0" />
             </StackPanel>
         </StackPanel>

@@ -66,7 +66,7 @@ public sealed class Settings
         }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
         {
-            return new Settings { LoadError = $"Could not read {path}, using defaults: {e.Message}" };
+            return new Settings { LoadError = Strings.SETTINGS_UNREADABLE_LOG(path, e.Message) };
         }
 
         return new Settings();

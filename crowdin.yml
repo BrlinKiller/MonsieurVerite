@@ -1,0 +1,4 @@
+files:
+  - source: /MonsieurVerite/Lang/en-US.json
+    translation: /MonsieurVerite/Lang/%locale%.json
+    skip_untranslated_strings: true
