@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
@@ -239,6 +240,44 @@ public static class Updater
             {
                 Debug.WriteLine($"Could not delete {stale}: {e.Message}");
             }
+        }
+    }
+
+    public static void Relaunch()
+    {
+        if (Environment.ProcessPath is not { } exe)
+        {
+            return;
+        }
+
+        var processId = Environment.ProcessId.ToString(CultureInfo.InvariantCulture);
+        var successor = new ProcessStartInfo(exe, ["--wait-for", processId])
+        {
+            WorkingDirectory = AppContext.BaseDirectory,
+        };
+        Process.Start(successor)?.Dispose();
+    }
+
+    /// <summary>
+    /// After an update the old instance starts this one before exiting, and its exe is one of the
+    /// *.old files. Waiting lets the sweep delete it now rather than on the next launch.
+    /// </summary>
+    public static void WaitForPredecessor(string[] args)
+    {
+        if (args is not ["--wait-for", var text]
+            || !int.TryParse(text, CultureInfo.InvariantCulture, out var processId))
+        {
+            return;
+        }
+
+        try
+        {
+            using var predecessor = Process.GetProcessById(processId);
+            predecessor.WaitForExit(TimeSpan.FromSeconds(5));
+        }
+        catch (ArgumentException)
+        {
+            // Already gone.
         }
     }
 

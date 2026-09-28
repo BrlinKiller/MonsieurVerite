@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
@@ -15,13 +14,8 @@ public sealed partial class MainViewModel : ObservableObject
 {
     private const int LogCapacity = 2000;
     private readonly Settings settings;
-    private readonly HashSet<QueueItem> watched = [];
-    private EngineClient? client;
     private CancellationTokenSource? cancellation;
-    private bool forceStopped;
-    private QueueItem? current;
-    private int runIndex;
-    private int runTotal;
+    private EngineRun? run;
 
     public MainViewModel(EngineLaunchProfile? engine, Settings settings)
     {
@@ -36,7 +30,8 @@ public sealed partial class MainViewModel : ObservableObject
         IsLogOpen = true;
         StageText = Strings.IDLE;
 
-        Items.CollectionChanged += OnItemsChanged;
+        Items.CollectionChanged += (_, _) => RefreshQueue();
+        Items.RowChanged += OnRowChanged;
 
         if (settings.LoadError is { } error)
         {
@@ -51,7 +46,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     private string NoEngineMessage => Strings.NO_ENGINE_LOG(EnginePath);
 
-    public ObservableCollection<QueueItem> Items { get; } = [];
+    public QueueItems Items { get; } = [];
 
     public ObservableCollection<string> Log { get; } = [];
 
@@ -73,15 +68,10 @@ public sealed partial class MainViewModel : ObservableObject
 
     public Action? RestartRequested { get; set; }
 
-    public UpdateEvent? LatestUpdate { get; private set; }
-
     public string RecoveredKeysPath => settings.RecoveredKeysPath;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasEngine), nameof(CanRunEngine))]
-    [NotifyCanExecuteChangedFor(
-        nameof(StartCommand), nameof(RetryFailedCommand), nameof(RecoverKeysCommand),
-        nameof(SetKeyCommand), nameof(CheckForUpdatesCommand))]
     public partial EngineLaunchProfile? Engine { get; private set; }
 
     public bool HasEngine => Engine is not null;
@@ -90,7 +80,7 @@ public sealed partial class MainViewModel : ObservableObject
     public string EnginePath => settings.EffectiveEnginePath;
 
     /// <summary>Null until the engine has run once, because only session_start carries it.</summary>
-    public string? EngineVersion { get; private set; }
+    public string? EngineVersion { get; internal set; }
 
     [ObservableProperty] public partial string SourceDirectory { get; set; }
 
@@ -98,11 +88,6 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle), nameof(CanRunEngine))]
-    [NotifyCanExecuteChangedFor(
-        nameof(StartCommand), nameof(CancelCommand), nameof(SkipCommand),
-        nameof(RetryFailedCommand), nameof(RecoverKeysCommand), nameof(SetKeyCommand),
-        nameof(RemoveCheckedCommand),
-        nameof(CheckForUpdatesCommand), nameof(OpenFolderCommand), nameof(BrowseFilesCommand))]
     public partial bool IsRunning { get; internal set; }
 
     public bool IsIdle => !IsRunning;
@@ -120,18 +105,29 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty] public partial string StageText { get; set; }
 
-    public bool AllChecked => Items.Count > 0 && Items.All(item => item.IsChecked);
+    public bool? CheckState
+    {
+        get
+        {
+            if (Items.AllChecked)
+            {
+                return true;
+            }
 
-    public bool? CheckState => AllChecked ? true : Items.Any(item => item.IsChecked) ? null : false;
+            if (Items.Checked.Any())
+            {
+                return null;
+            }
 
-    public QueueItem? SingleChecked =>
-        Items.Where(item => item.IsChecked).Take(2).ToList() is [var only] ? only : null;
+            return false;
+        }
+    }
 
     public string StartLabel
     {
         get
         {
-            var checkedCount = Items.Count(item => item.IsChecked);
+            var checkedCount = Items.Checked.Count();
             return checkedCount > 0 && checkedCount < Items.Count
                 ? Strings.START_CHECKED(checkedCount)
                 : Strings.START;
@@ -193,7 +189,7 @@ public sealed partial class MainViewModel : ObservableObject
             }
 
             var fileName = Path.GetFileName(path);
-            if (Find(fileName) is not null)
+            if (Items.Find(fileName) is not null)
             {
                 AppendLog(Strings.ALREADY_QUEUED_LOG(fileName));
                 continue;
@@ -309,7 +305,7 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ToggleAll()
     {
-        var target = !AllChecked;
+        var target = !Items.AllChecked;
         foreach (var item in Items)
         {
             item.IsChecked = target;
@@ -328,7 +324,7 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(IsIdle))]
     private void RemoveChecked()
     {
-        foreach (var item in Items.Where(item => item.IsChecked).ToList())
+        foreach (var item in Items.Checked.ToList())
         {
             Items.Remove(item);
         }
@@ -337,8 +333,7 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenOutputFolder()
     {
-        var output = Items.FirstOrDefault(item => item.IsChecked && File.Exists(item.OutputPath))
-            ?.OutputPath;
+        var output = Items.Checked.FirstOrDefault(item => File.Exists(item.OutputPath))?.OutputPath;
         if (output is not null)
         {
             Explore($"/select,\"{output}\"");
@@ -372,7 +367,7 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanStart))]
     private async Task StartAsync()
     {
-        var targets = Items.Where(item => item.IsChecked).ToList();
+        var targets = Items.Checked.ToList();
         if (targets.Count == 0)
         {
             targets = [.. Items];
@@ -396,24 +391,24 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanSetKey))]
     private async Task SetKeyAsync()
     {
-        if (SingleChecked is { } item && PromptKey?.Invoke(item) is { } key)
+        if (Items.SingleChecked is { } item && PromptKey?.Invoke(item) is { } key)
         {
             await ConvertAsync([item], ["--key", key]).ConfigureAwait(true);
         }
     }
 
-    private bool CanSetKey() => CanRunEngine && SingleChecked is not null;
+    private bool CanSetKey() => CanRunEngine && Items.SingleChecked is not null;
 
     [RelayCommand(CanExecute = nameof(CanCopyVideoKey))]
     private void CopyVideoKey()
     {
-        if (SingleChecked?.VideoKey is { } videoKey)
+        if (Items.SingleChecked?.VideoKey is { } videoKey)
         {
             CopyText?.Invoke(videoKey.ToString(CultureInfo.InvariantCulture));
         }
     }
 
-    private bool CanCopyVideoKey() => SingleChecked?.VideoKey is not null;
+    private bool CanCopyVideoKey() => Items.SingleChecked?.VideoKey is not null;
 
     private async Task ConvertAsync(List<QueueItem> targets, IReadOnlyList<string> extraArguments)
     {
@@ -423,9 +418,9 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
-        Enqueue(targets);
         foreach (var item in targets)
         {
+            item.MarkQueued();
             item.OutputPath = null;
         }
 
@@ -441,13 +436,17 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task RecoverKeysAsync()
     {
         var targets = Items.Where(IsRecoverable).ToList();
-        var leftOut = Items.Count(item => item.IsChecked && item.StreamCipher);
+        var leftOut = Items.Checked.Count(item => item.StreamCipher);
         if (leftOut > 0)
         {
             AppendLog(Strings.LEFT_OUT_STREAM_CIPHER_LOG(leftOut));
         }
 
-        Enqueue(targets);
+        foreach (var item in targets)
+        {
+            item.MarkQueued();
+        }
+
         await RunEngineAsync(["--crack", .. targets.Select(item => item.FullPath)], targets.Count)
             .ConfigureAwait(true);
     }
@@ -455,16 +454,6 @@ public sealed partial class MainViewModel : ObservableObject
     private bool CanRecoverKeys() => CanRunEngine && Items.Any(IsRecoverable);
 
     private static bool IsRecoverable(QueueItem item) => item.IsChecked && !item.StreamCipher;
-
-    private static void Enqueue(IEnumerable<QueueItem> targets)
-    {
-        foreach (var item in targets)
-        {
-            item.Status = ItemStatus.Queued;
-            item.Progress = 0;
-            item.Detail = "";
-        }
-    }
 
     [RelayCommand(CanExecute = nameof(IsRunning))]
     private void Cancel()
@@ -477,30 +466,19 @@ public sealed partial class MainViewModel : ObservableObject
         if (!source.IsCancellationRequested)
         {
             source.Cancel();
-            CanForceStop = client is not null;
+            CanForceStop = run is not null;
             StageText = Strings.CANCELLING;
         }
-        else if (client is { } engine && !forceStopped)
+        else if (run?.ForceStop() == true)
         {
-            forceStopped = true;
-            engine.Kill();
             StageText = Strings.STOPPING;
         }
     }
 
-    // The skip names the file so the engine can drop it if that job already finished by the
-    // time the command arrives, instead of skipping whichever file started next.
     [RelayCommand(CanExecute = nameof(CanSkip))]
-    private void Skip()
-    {
-        if (current is { Status: ItemStatus.Running } item)
-        {
-            client?.SendSkip(item.FileName);
-            item.Detail = Strings.SKIPPING_DETAIL;
-        }
-    }
+    private void Skip() => run?.Skip();
 
-    private bool CanSkip() => IsRunning && runTotal > 0;
+    private bool CanSkip() => run is { OpensJobs: true };
 
     public void Shutdown() => cancellation?.Cancel();
 
@@ -516,9 +494,8 @@ public sealed partial class MainViewModel : ObservableObject
     // otherwise meet a dialog every time.
     private async Task RunUpdateCheckAsync(bool quiet)
     {
-        LatestUpdate = null;
-        await RunEngineAsync(["--update"], 0).ConfigureAwait(true);
-        if (LatestUpdate is not { } update)
+        var check = await RunEngineAsync(["--update"], 0).ConfigureAwait(true);
+        if (check.Update is not { } update)
         {
             AppendLog(Strings.NO_UPDATE_RESULT_LOG);
             return;
@@ -539,7 +516,7 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task<bool> InstallUpdateAsync()
     {
         var installed = false;
-        await RunExclusiveAsync(async token =>
+        await RunExclusiveAsync(null, async token =>
         {
             try
             {
@@ -566,8 +543,24 @@ public sealed partial class MainViewModel : ObservableObject
         return installed;
     }
 
-    /// <summary>The one owner of <see cref="IsRunning"/>, the cancellation source and Cancel.</summary>
-    private async Task RunExclusiveAsync(Func<CancellationToken, Task> work)
+    private async Task<EngineRun> RunEngineAsync(IReadOnlyList<string> arguments, int jobCount)
+    {
+        if (Engine is not { } profile)
+        {
+            throw new InvalidOperationException("No engine is configured.");
+        }
+
+        var engineRun = new EngineRun(this, profile, jobCount);
+        await RunExclusiveAsync(engineRun, token => engineRun.RunAsync(arguments, token))
+            .ConfigureAwait(true);
+        return engineRun;
+    }
+
+    /// <summary>
+    /// The one owner of <see cref="IsRunning"/>, the cancellation source and the current run.
+    /// An update install has no engine run, so it passes null.
+    /// </summary>
+    private async Task RunExclusiveAsync(EngineRun? engineRun, Func<CancellationToken, Task> work)
     {
         if (IsRunning)
         {
@@ -576,7 +569,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         using var source = new CancellationTokenSource();
         cancellation = source;
-        forceStopped = false;
+        run = engineRun;
         IsRunning = true;
         try
         {
@@ -585,301 +578,11 @@ public sealed partial class MainViewModel : ObservableObject
         finally
         {
             cancellation = null;
+            run = null;
             CanForceStop = false;
             IsRunning = false;
             StageText = Strings.IDLE;
         }
-    }
-
-    // jobCount is how many job_start events the run will open, which a probe and an update check
-    // never do. Zero hides the run position and disables Skip.
-    private Task RunEngineAsync(IReadOnlyList<string> arguments, int jobCount)
-    {
-        if (Engine is not { } profile)
-        {
-            throw new InvalidOperationException("No engine is configured.");
-        }
-
-        return RunExclusiveAsync(token => DriveEngineAsync(profile, arguments, jobCount, token));
-    }
-
-    private async Task DriveEngineAsync(
-        EngineLaunchProfile profile, IReadOnlyList<string> arguments, int jobCount,
-        CancellationToken cancellationToken)
-    {
-        using var engine = new EngineClient(profile);
-        using var registration = cancellationToken.Register(engine.SendCancel);
-        client = engine;
-        current = null;
-        runIndex = 0;
-        runTotal = jobCount;
-
-        string? failure = null;
-        try
-        {
-            var exit = engine.Start(["--json", .. arguments]);
-            // The token only asks the engine to stop, and its events are read until it has.
-            await foreach (var evt in engine.Events.ReadAllAsync(CancellationToken.None)
-                               .ConfigureAwait(true))
-            {
-                Apply(evt);
-            }
-
-            var exitCode = await exit.ConfigureAwait(true);
-            if (forceStopped)
-            {
-                AppendLog(Strings.ENGINE_STOPPED_LOG);
-            }
-            else if (exitCode != 0)
-            {
-                failure = Strings.ENGINE_EXITED_DETAIL(exitCode);
-                AppendLog(Strings.ENGINE_EXITED_LOG(exitCode));
-
-                // The engine exits 1 after a batch in which any file failed, and those rows
-                // already carry the error events. The stderr tail is for a run that never opened
-                // a job or died inside one.
-                if (current is null or { Status: ItemStatus.Running })
-                {
-                    foreach (var line in engine.StandardErrorTail.Where(line => line.Length > 0))
-                    {
-                        AppendLog($"  {line}");
-                    }
-                }
-            }
-        }
-        catch (Win32Exception e)
-        {
-            failure = Strings.ENGINE_NOT_STARTED_DETAIL;
-            AppendLog(Strings.ENGINE_START_FAILED_LOG(profile.FileName, e.Message));
-        }
-        catch (Exception)
-        {
-            // A bug in Apply ends the run, and disposing the client kills the engine. The
-            // unhandled-error dialog shows the exception.
-            failure = Strings.UNEXPECTED_ERROR_DETAIL;
-            throw;
-        }
-        finally
-        {
-            client = null;
-            current = null;
-            SettleRows(failure);
-        }
-    }
-
-    private void SettleRows(string? failure)
-    {
-        foreach (var item in Items)
-        {
-            switch (item.Status)
-            {
-                case ItemStatus.Queued:
-                    item.Status = forceStopped ? ItemStatus.Cancelled : ItemStatus.Pending;
-                    break;
-                case ItemStatus.Running when forceStopped:
-                    item.Status = ItemStatus.Cancelled;
-                    item.Detail = "";
-                    break;
-                case ItemStatus.Running:
-                    item.Status = failure is null ? ItemStatus.Pending : ItemStatus.Error;
-                    item.Detail = failure ?? "";
-                    break;
-            }
-        }
-    }
-
-    internal void Apply(EngineEvent evt)
-    {
-        switch (evt)
-        {
-            case SessionStartEvent session:
-                EngineVersion = session.Version;
-                if (session.Protocol != EngineEvent.ProtocolVersion)
-                {
-                    AppendLog(Strings.PROTOCOL_MISMATCH_LOG(session.Protocol,
-                        EngineEvent.ProtocolVersion));
-                }
-
-                break;
-
-            case LogEvent log:
-                AppendLog($"[{log.Level}] {log.Message}");
-                break;
-
-            case JobStartEvent job:
-                // --crack never closes a job, and the next job_start is the only sign that the
-                // previous file is done.
-                if (current is { Status: ItemStatus.Running } previous)
-                {
-                    previous.Status = ItemStatus.Pending;
-                }
-
-                runIndex++;
-                current = Find(job.File);
-                if (current is not null)
-                {
-                    current.Status = ItemStatus.Running;
-                    current.Progress = 0;
-                }
-
-                break;
-
-            case StageEvent stage when stage.Status == "start":
-                ShowStage(Describe(stage.Stage, null));
-                if (current is not null)
-                {
-                    current.Detail = StageName(stage.Stage);
-                    current.Progress = 0;
-                }
-
-                break;
-
-            case ProgressEvent progress when progress.Total > 0:
-                var percent = progress.Current * 100.0 / progress.Total;
-                ShowStage(Describe(progress.Stage, (int)percent));
-                if (current is not null)
-                {
-                    current.Progress = percent;
-                }
-
-                break;
-
-            case ResultEvent result when Find(result.File) is { } finished:
-                finished.Status = ItemStatus.Done;
-                finished.Progress = 100;
-                finished.Detail = "";
-                finished.OutputPath = result.Output;
-                break;
-
-            case ErrorEvent error:
-                if (Find(error.File) is { } failed)
-                {
-                    failed.Status = ItemStatus.Error;
-                    failed.Detail = error.Message;
-                }
-
-                AppendLog(error.File.Length > 0 ? $"{error.File}: {error.Message}" : error.Message);
-                break;
-
-            case JobSkippedEvent skipped when Find(skipped.File) is { } skippedItem:
-                skippedItem.Status = ItemStatus.Skipped;
-                skippedItem.Detail = skipped.Reason switch
-                {
-                    "exists" => Strings.SKIP_EXISTS_DETAIL,
-                    "no_key" => Strings.SKIP_NO_KEY_DETAIL,
-                    "requested" => Strings.SKIP_REQUESTED_DETAIL,
-                    _ => skipped.Reason,
-                };
-                break;
-
-            case CancelledEvent cancelled:
-                if (Find(cancelled.File) is { } cancelledItem)
-                {
-                    cancelledItem.Status = ItemStatus.Cancelled;
-                    cancelledItem.Detail = "";
-                }
-
-                foreach (var item in Items.Where(item => item.Status == ItemStatus.Queued))
-                {
-                    item.Status = ItemStatus.Cancelled;
-                }
-
-                break;
-
-            case ProbeEvent probe when Find(probe.File) is { } probed:
-                probed.Key = probe.Key ? KeyState.Present : KeyState.Missing;
-                probed.Version = probe.Version;
-                probed.Subtitles = probe.Subtitles;
-                probed.HasVsScript = probe.VsScript is not null;
-                probed.StreamCipher = probe.StreamCipher;
-                break;
-
-            case CrackEvent crack when Find(crack.File) is { } cracked:
-                if (crack.VideoKey is { } videoKey)
-                {
-                    cracked.Key = KeyState.Recovered;
-                    cracked.VideoKey = videoKey;
-                    AppendLog($"{crack.File}: videoKey={videoKey}");
-                    RecordRecoveredKey(crack.Stem, videoKey);
-                }
-                else
-                {
-                    // A key the probe found in keys.json stays, because a decline says nothing
-                    // about keys.json.
-                    if (cracked.Key == KeyState.Unknown)
-                    {
-                        cracked.Key = KeyState.Missing;
-                    }
-
-                    AppendLog(Strings.KEY_NOT_RECOVERABLE_LOG(crack.File, crack.Reason));
-                }
-
-                break;
-
-            case CrackSummaryEvent summary:
-                AppendLog(Strings.CRACK_SUMMARY_LOG(summary.Recovered, summary.Unrecovered));
-                break;
-
-            case UpdateEvent update:
-                AppendLog(update.Available
-                    ? Strings.UPDATE_AVAILABLE_LOG(update.Latest, update.Current)
-                    : update.Reason is { Length: > 0 } reason
-                        ? Strings.UPDATE_CHECK_FAILED_LOG(reason)
-                        : Strings.UP_TO_DATE_LOG(update.Current));
-                LatestUpdate = update;
-                break;
-
-            case QuestionEvent question:
-                var answer = AnswerQuestion?.Invoke(question.Prompt) ?? question.Default;
-                client?.SendAnswer(question.Id, answer);
-                break;
-
-            case UnknownEvent unknown when unknown.Type.Length > 0:
-                AppendLog(Strings.UNKNOWN_EVENT_LOG(unknown.Type));
-                break;
-        }
-    }
-
-    private void ShowStage(string text)
-    {
-        if (cancellation is not { IsCancellationRequested: true })
-        {
-            StageText = text;
-        }
-    }
-
-    private QueueItem? Find(string fileName) =>
-        Items.FirstOrDefault(item => item.FileName == fileName);
-
-    private void RecordRecoveredKey(string stem, ulong videoKey)
-    {
-        try
-        {
-            if (RecoveredKeys.Add(RecoveredKeysPath, stem, videoKey) is { } setAside)
-            {
-                AppendLog(Strings.RECOVERED_KEYS_SET_ASIDE_LOG(RecoveredKeysPath, setAside));
-            }
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            AppendLog(Strings.RECOVERED_KEYS_UNWRITTEN_LOG(RecoveredKeysPath, e.Message));
-        }
-    }
-
-    private static string StageName(string stage) => stage switch
-    {
-        "demux" => Strings.STAGE_DEMUX,
-        "crack" => Strings.STAGE_CRACK,
-        "ffmpeg" => Strings.STAGE_FFMPEG,
-        "subtitles" => Strings.STAGE_SUBTITLES,
-        _ => stage,
-    };
-
-    private string Describe(string stage, int? percent)
-    {
-        var name = StageName(stage);
-        var text = percent is { } value ? $"{name} · {value}%" : name;
-        return current is null || runTotal == 0 ? text : $"{runIndex}/{runTotal} · {text}";
     }
 
     public void AppendLog(string line)
@@ -894,56 +597,42 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ClearLog() => Log.Clear();
 
-    private void OnItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    partial void OnEngineChanged(EngineLaunchProfile? value) => RefreshCommands();
+
+    partial void OnIsRunningChanged(bool value) => RefreshCommands();
+
+    // Progress and Detail change on every engine event, and nothing here reads them.
+    private void OnRowChanged(object? sender, PropertyChangedEventArgs e)
     {
-        // Clear raises Reset and names no OldItems, which is why the rows are tracked here too.
-        var removed = e.Action == NotifyCollectionChangedAction.Reset
-            ? watched.ToList()
-            : e.OldItems?.Cast<QueueItem>() ?? [];
-        foreach (var item in removed)
+        if (e.PropertyName is nameof(QueueItem.IsChecked) or nameof(QueueItem.Status)
+            or nameof(QueueItem.Key) or nameof(QueueItem.Subtitles)
+            or nameof(QueueItem.HasVsScript) or nameof(QueueItem.StreamCipher)
+            or nameof(QueueItem.VideoKey))
         {
-            item.PropertyChanged -= OnItemPropertyChanged;
-            watched.Remove(item);
-        }
-
-        foreach (var item in e.NewItems?.Cast<QueueItem>() ?? [])
-        {
-            item.PropertyChanged += OnItemPropertyChanged;
-            watched.Add(item);
-        }
-
-        OnCheckedChanged();
-        OnPropertyChanged(nameof(Summary));
-        StartCommand.NotifyCanExecuteChanged();
-        RetryFailedCommand.NotifyCanExecuteChanged();
-    }
-
-    private void OnItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        switch (e.PropertyName)
-        {
-            case nameof(QueueItem.IsChecked):
-                OnCheckedChanged();
-                break;
-            case nameof(QueueItem.VideoKey):
-                CopyVideoKeyCommand.NotifyCanExecuteChanged();
-                break;
-            case nameof(QueueItem.Status) or nameof(QueueItem.Key)
-                or nameof(QueueItem.Subtitles) or nameof(QueueItem.HasVsScript):
-                OnPropertyChanged(nameof(Summary));
-                RetryFailedCommand.NotifyCanExecuteChanged();
-                break;
+            RefreshQueue();
         }
     }
 
-    private void OnCheckedChanged()
+    private void RefreshQueue()
     {
-        OnPropertyChanged(nameof(AllChecked));
         OnPropertyChanged(nameof(CheckState));
         OnPropertyChanged(nameof(StartLabel));
-        OnPropertyChanged(nameof(SingleChecked));
-        RecoverKeysCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(Summary));
+        RefreshCommands();
+    }
+
+    private void RefreshCommands()
+    {
+        OpenFolderCommand.NotifyCanExecuteChanged();
+        BrowseFilesCommand.NotifyCanExecuteChanged();
+        RemoveCheckedCommand.NotifyCanExecuteChanged();
+        StartCommand.NotifyCanExecuteChanged();
+        RetryFailedCommand.NotifyCanExecuteChanged();
         SetKeyCommand.NotifyCanExecuteChanged();
         CopyVideoKeyCommand.NotifyCanExecuteChanged();
+        RecoverKeysCommand.NotifyCanExecuteChanged();
+        CancelCommand.NotifyCanExecuteChanged();
+        SkipCommand.NotifyCanExecuteChanged();
+        CheckForUpdatesCommand.NotifyCanExecuteChanged();
     }
 }

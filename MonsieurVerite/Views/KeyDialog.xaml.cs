@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 
-namespace MonsieurVerite;
+namespace MonsieurVerite.Views;
 
 public partial class KeyDialog : DialogWindow
 {

@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace MonsieurVerite;
+namespace MonsieurVerite.Views;
 
 public class DialogWindow : Window
 {

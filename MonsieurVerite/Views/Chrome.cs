@@ -6,7 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 
-namespace MonsieurVerite;
+namespace MonsieurVerite.Views;
 
 public static partial class Chrome
 {
@@ -21,6 +21,53 @@ public static partial class Chrome
         var hwnd = new WindowInteropHelper(window).Handle;
         var backdrop = BackdropNone;
         _ = DwmSetWindowAttribute(hwnd, SystemBackdropType, ref backdrop, sizeof(int));
+    }
+
+    /// <summary>Snap layouts need the maximize button reported as HTMAXBUTTON.</summary>
+    public static void HookCaption(Window window, Button maximize)
+    {
+        const int hitTest = 0x0084, buttonDown = 0x00A1, buttonUp = 0x00A2, mouseLeave = 0x02A2;
+        const int caption = 2, maxButton = 9;
+        var source = HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);
+        source?.AddHook((IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled) =>
+        {
+            switch (msg)
+            {
+                case hitTest when maximize.IsVisible:
+                    var over = Over(maximize, lParam);
+                    maximize.Tag = over ? "hot" : null;
+                    handled = over;
+                    return over ? maxButton : IntPtr.Zero;
+                case buttonDown when wParam == maxButton:
+                    handled = true;
+                    return IntPtr.Zero;
+                case buttonDown when wParam == caption:
+                    // The click never reaches WPF's mouse events, because the toolbar is caption.
+                    App.Blur(window);
+                    return IntPtr.Zero;
+                case buttonUp when wParam == maxButton:
+                    handled = true;
+                    ToggleMaximized(window);
+                    return IntPtr.Zero;
+                case mouseLeave:
+                    maximize.Tag = null;
+                    return IntPtr.Zero;
+                default:
+                    return IntPtr.Zero;
+            }
+        });
+    }
+
+    public static void ToggleMaximized(Window window) =>
+        window.WindowState = window.WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+
+    private static bool Over(FrameworkElement element, IntPtr packedScreenPoint)
+    {
+        var packed = packedScreenPoint.ToInt64();
+        var screen = new Point((short)(packed & 0xFFFF), (short)((packed >> 16) & 0xFFFF));
+        return new Rect(element.RenderSize).Contains(element.PointFromScreen(screen));
     }
 
     public static void Frost(Window dialog)

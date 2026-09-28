@@ -3,7 +3,7 @@ using System.Windows;
 using Microsoft.Win32;
 using MonsieurVerite.ViewModels;
 
-namespace MonsieurVerite;
+namespace MonsieurVerite.Views;
 
 public partial class SettingsDialog : DialogWindow
 {

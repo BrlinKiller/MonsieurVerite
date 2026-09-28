@@ -1,12 +1,10 @@
 using System.Collections.Specialized;
-using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
@@ -14,7 +12,7 @@ using Microsoft.Win32;
 using MonsieurVerite.Engine;
 using MonsieurVerite.ViewModels;
 
-namespace MonsieurVerite;
+namespace MonsieurVerite.Views;
 
 public partial class MainWindow : Window
 {
@@ -65,46 +63,8 @@ public partial class MainWindow : Window
     {
         base.OnSourceInitialized(e);
         Chrome.Solid(this);
-        HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(Caption);
+        Chrome.HookCaption(this, MaximizeButton);
         PaintBleed(VisualTreeHelper.GetDpi(this));
-    }
-
-    /// <summary>Snap layouts need the maximize button reported as HTMAXBUTTON.</summary>
-    private IntPtr Caption(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
-    {
-        const int hitTest = 0x0084, buttonDown = 0x00A1, buttonUp = 0x00A2, mouseLeave = 0x02A2;
-        const int caption = 2, maxButton = 9;
-        switch (msg)
-        {
-            case hitTest when MaximizeButton.IsVisible:
-                var over = Over(MaximizeButton, lParam);
-                MaximizeButton.Tag = over ? "hot" : null;
-                handled = over;
-                return over ? maxButton : IntPtr.Zero;
-            case buttonDown when wParam == maxButton:
-                handled = true;
-                return IntPtr.Zero;
-            case buttonDown when wParam == caption:
-                // The click never reaches WPF's mouse events, because the toolbar is caption.
-                App.Blur(this);
-                return IntPtr.Zero;
-            case buttonUp when wParam == maxButton:
-                handled = true;
-                Maximize_Click(this, new RoutedEventArgs());
-                return IntPtr.Zero;
-            case mouseLeave:
-                MaximizeButton.Tag = null;
-                return IntPtr.Zero;
-            default:
-                return IntPtr.Zero;
-        }
-    }
-
-    private static bool Over(FrameworkElement element, IntPtr packedScreenPoint)
-    {
-        var packed = packedScreenPoint.ToInt64();
-        var screen = new Point((short)(packed & 0xFFFF), (short)((packed >> 16) & 0xFFFF));
-        return new Rect(element.RenderSize).Contains(element.PointFromScreen(screen));
     }
 
     private Window? Dialog =>
@@ -115,10 +75,7 @@ public partial class MainWindow : Window
     private void Minimize_Click(object sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;
 
-    private void Maximize_Click(object sender, RoutedEventArgs e) =>
-        WindowState = WindowState == WindowState.Maximized
-            ? WindowState.Normal
-            : WindowState.Maximized;
+    private void Maximize_Click(object sender, RoutedEventArgs e) => Chrome.ToggleMaximized(this);
 
     protected override void OnStateChanged(EventArgs e)
     {
@@ -274,16 +231,7 @@ public partial class MainWindow : Window
 
     private void Restart()
     {
-        if (Environment.ProcessPath is { } exe)
-        {
-            var processId = Environment.ProcessId.ToString(CultureInfo.InvariantCulture);
-            var successor = new ProcessStartInfo(exe, ["--wait-for", processId])
-            {
-                WorkingDirectory = AppContext.BaseDirectory,
-            };
-            Process.Start(successor)?.Dispose();
-        }
-
+        Updater.Relaunch();
         Close();
     }
 

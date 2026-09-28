@@ -3,7 +3,7 @@ using System.Windows.Documents;
 using System.Windows.Navigation;
 using MonsieurVerite.ViewModels;
 
-namespace MonsieurVerite;
+namespace MonsieurVerite.Views;
 
 public partial class AboutDialog : DialogWindow
 {
@@ -14,9 +14,18 @@ public partial class AboutDialog : DialogWindow
 
         TitleText.Text = $"charlotte {App.Version}";
         BuildText.Text = App.Build ?? Strings.UNKNOWN_BUILD;
-        EngineText.Text = viewModel.Engine is null ? Strings.NO_ENGINE_FOUND
-            : viewModel.EngineVersion is { } version ? $"charlotte-cli {version}"
-            : "charlotte-cli";
+        if (viewModel.Engine is null)
+        {
+            EngineText.Text = Strings.NO_ENGINE_FOUND;
+        }
+        else if (viewModel.EngineVersion is { } version)
+        {
+            EngineText.Text = $"charlotte-cli {version}";
+        }
+        else
+        {
+            EngineText.Text = "charlotte-cli";
+        }
 
         AppendFormat(CreditsText, nameof(Strings.POWERED_BY),
             ("ffmpeg", Link("ffmpeg", "https://ffmpeg.org")),

@@ -23,7 +23,7 @@ public partial class App
     {
         Strings.Use(CultureInfo.CurrentUICulture);
         base.OnStartup(e);
-        WaitForPredecessor(e.Args);
+        Updater.WaitForPredecessor(e.Args);
         Updater.DeleteStaleFiles(AppContext.BaseDirectory);
         ThemeMode = ThemeMode.Dark;
         EventManager.RegisterClassHandler(typeof(Window), UIElement.PreviewMouseDownEvent,
@@ -51,28 +51,5 @@ public partial class App
     {
         FocusManager.SetFocusedElement(window, null);
         Keyboard.Focus(window);
-    }
-
-    /// <summary>
-    /// After an update the old instance starts this one before exiting, and its exe is one of the
-    /// *.old files. Waiting lets the sweep delete it now rather than on the next launch.
-    /// </summary>
-    private static void WaitForPredecessor(string[] args)
-    {
-        if (args is not ["--wait-for", var text]
-            || !int.TryParse(text, CultureInfo.InvariantCulture, out var processId))
-        {
-            return;
-        }
-
-        try
-        {
-            using var predecessor = Process.GetProcessById(processId);
-            predecessor.WaitForExit(TimeSpan.FromSeconds(5));
-        }
-        catch (ArgumentException)
-        {
-            // Already gone.
-        }
     }
 }

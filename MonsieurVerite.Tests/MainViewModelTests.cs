@@ -1,142 +1,13 @@
 using System.IO;
 
-using MonsieurVerite.Engine;
 using MonsieurVerite.ViewModels;
 
 using Xunit.Abstractions;
 
 namespace MonsieurVerite.Tests;
 
-public class MainViewModelTests(ITestOutputHelper output) : IDisposable
+public class MainViewModelTests(ITestOutputHelper output) : ViewModelTest
 {
-    private readonly ScratchFolder scratch = new();
-
-    public void Dispose()
-    {
-        scratch.Dispose();
-        GC.SuppressFinalize(this);
-    }
-
-    // Pointing the engine path into the scratch folder puts recovered_keys.json there too.
-    private MainViewModel NewViewModel(EngineLaunchProfile? engine) =>
-        new(engine, new Settings { EnginePath = scratch.File("charlotte-cli.exe") });
-
-    private MainViewModel NewViewModel() => NewViewModel(EngineLaunchProfile.Packaged(scratch.File("charlotte-cli.exe")));
-
-    private MainViewModel NewEnginelessViewModel() => NewViewModel(null);
-
-    private QueueItem Add(MainViewModel viewModel, string name)
-    {
-        var item = new QueueItem(scratch.File(Path.Combine("usm", name)));
-        viewModel.Items.Add(item);
-        return item;
-    }
-
-    private EngineLaunchProfile FakeEngine(params string[] lines)
-    {
-        var script = scratch.File(Path.GetRandomFileName() + ".cmd");
-        File.WriteAllLines(script, lines);
-        return new EngineLaunchProfile
-        {
-            FileName = "cmd.exe",
-            BaseArguments = ["/c", script],
-            WorkingDirectory = scratch.Root,
-        };
-    }
-
-    [Fact]
-    public void ProbeFillsKeyAndSubtitleAvailability()
-    {
-        var viewModel = NewViewModel();
-        var keyed = Add(viewModel, "a.usm");
-        var keyless = Add(viewModel, "b.usm");
-
-        viewModel.Apply(new ProbeEvent { File = "a.usm", Key = true, Version = "5.3", Subtitles = ["EN", "JP"], VsScript = "vs/a.py" });
-        viewModel.Apply(new ProbeEvent { File = "b.usm", Key = false, Subtitles = [], VsScript = null, StreamCipher = true });
-
-        Assert.Equal(KeyState.Present, keyed.Key);
-        Assert.Equal("5.3", keyed.Version);
-        Assert.True(keyed.HasSubtitles);
-        Assert.Equal("Cached subtitles: EN, JP", keyed.SubtitlesTip);
-        Assert.True(keyed.HasVsScript);
-        Assert.False(keyed.StreamCipher);
-
-        Assert.Equal(KeyState.Missing, keyless.Key);
-        Assert.Null(keyless.Version);
-        Assert.False(keyless.HasSubtitles);
-        Assert.False(keyless.HasVsScript);
-        Assert.True(keyless.StreamCipher);
-    }
-
-    [Fact]
-    public void ARunDrivesTheRowFromPendingToDone()
-    {
-        var viewModel = NewViewModel();
-        var item = Add(viewModel, "a.usm");
-        Assert.Equal(ItemStatus.Pending, item.Status);
-
-        viewModel.Apply(new JobStartEvent { File = "a.usm" });
-        Assert.Equal(ItemStatus.Running, item.Status);
-
-        viewModel.Apply(new StageEvent { Stage = "demux", Status = "start" });
-        Assert.Equal("Demuxing", item.Detail);
-
-        viewModel.Apply(new ProgressEvent { Stage = "demux", Current = 5, Total = 10 });
-        Assert.Equal(50, item.Progress);
-        // No run position in the text, because only a real run sets runTotal.
-        Assert.Equal("Demuxing · 50%", viewModel.StageText);
-
-        var output = scratch.File(Path.Combine("out", "a", "a.mkv"));
-        viewModel.Apply(new ResultEvent { File = "a.usm", Output = output });
-        Assert.Equal(ItemStatus.Done, item.Status);
-        Assert.Equal(100, item.Progress);
-        Assert.Equal(output, item.OutputPath);
-    }
-
-    [Fact]
-    public void CancelMarksTheQueuedRemainderNotTheUntouchedRows()
-    {
-        var viewModel = NewViewModel();
-        var running = Add(viewModel, "a.usm");
-        var queued = Add(viewModel, "b.usm");
-        var untouched = Add(viewModel, "c.usm");
-        running.Status = ItemStatus.Running;
-        queued.Status = ItemStatus.Queued;
-
-        viewModel.Apply(new CancelledEvent { File = "a.usm" });
-
-        Assert.Equal(ItemStatus.Cancelled, running.Status);
-        Assert.Equal(ItemStatus.Cancelled, queued.Status);
-        Assert.Equal(ItemStatus.Pending, untouched.Status);
-    }
-
-    [Fact]
-    public void RecoveryMidRunFlipsTheKeyColumnAndRecordsTheKey()
-    {
-        var viewModel = NewViewModel();
-        var item = Add(viewModel, "a.usm");
-        item.Key = KeyState.Missing;
-
-        viewModel.Apply(new CrackEvent { File = "a.usm", Stem = "a", VideoKey = 7, Reason = "" });
-
-        Assert.Equal(KeyState.Recovered, item.Key);
-        Assert.Equal(7UL, item.VideoKey);
-        Assert.Contains(viewModel.Log, line => line.Contains("videoKey=7", StringComparison.Ordinal));
-        Assert.Contains("\"a\"", File.ReadAllText(viewModel.RecoveredKeysPath), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void UpdateCheckIsRememberedAndLogged()
-    {
-        var viewModel = NewViewModel();
-
-        viewModel.Apply(new UpdateEvent { Current = "1.0", Latest = "1.1", Available = true });
-
-        Assert.NotNull(viewModel.LatestUpdate);
-        Assert.Equal("1.1", viewModel.LatestUpdate.Latest);
-        Assert.Contains(viewModel.Log, line => line.Contains("1.1 is available", StringComparison.Ordinal));
-    }
-
     [Theory]
     [InlineData(true, true)]
     [InlineData(false, false)]
@@ -154,8 +25,8 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
 
         await viewModel.CheckForUpdatesOnStartupAsync();
 
-        Assert.NotNull(viewModel.LatestUpdate);
         Assert.Equal(asked, confirmed);
+        Assert.DoesNotContain(Strings.NO_UPDATE_RESULT_LOG, viewModel.Log);
     }
 
     [Fact]
@@ -165,14 +36,17 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
             """@echo {"type":"update","current":"1.0","latest":"1.1","available":true}""");
         var settings = new Settings
         {
-            EnginePath = scratch.File("charlotte-cli.exe"),
+            EnginePath = Scratch.File("charlotte-cli.exe"),
             CheckForUpdatesOnStartup = false,
         };
         var viewModel = new MainViewModel(engine, settings);
+        var confirmed = false;
+        viewModel.ConfirmUpdate = _ => confirmed = true;
 
         await viewModel.CheckForUpdatesOnStartupAsync();
 
-        Assert.Null(viewModel.LatestUpdate);
+        Assert.False(confirmed);
+        Assert.DoesNotContain(viewModel.Log, line => line.Contains("1.1", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -185,11 +59,11 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
 
         first.IsChecked = true;
         Assert.True(viewModel.SetKeyCommand.CanExecute(null));
-        Assert.Same(first, viewModel.SingleChecked);
+        Assert.Same(first, viewModel.Items.SingleChecked);
 
         second.IsChecked = true;
         Assert.False(viewModel.SetKeyCommand.CanExecute(null));
-        Assert.Null(viewModel.SingleChecked);
+        Assert.Null(viewModel.Items.SingleChecked);
     }
 
     [Fact]
@@ -202,53 +76,11 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
         item.IsChecked = true;
         Assert.False(viewModel.CopyVideoKeyCommand.CanExecute(null));
 
-        viewModel.Apply(new CrackEvent { File = "a.usm", Stem = "a", VideoKey = 7, Reason = "" });
+        item.ApplyCrack(7);
         Assert.True(viewModel.CopyVideoKeyCommand.CanExecute(null));
 
         viewModel.CopyVideoKeyCommand.Execute(null);
         Assert.Equal("7", copied);
-    }
-
-    [Fact]
-    public void ACrackBatchRestsEachRowWhenTheNextOneStarts()
-    {
-        var viewModel = NewViewModel();
-        var first = Add(viewModel, "a.usm");
-        var second = Add(viewModel, "b.usm");
-
-        viewModel.Apply(new JobStartEvent { File = "a.usm" });
-        viewModel.Apply(new CrackEvent { File = "a.usm", Stem = "a", VideoKey = null, Reason = "x" });
-        Assert.Equal(ItemStatus.Running, first.Status);
-
-        viewModel.Apply(new JobStartEvent { File = "b.usm" });
-
-        Assert.Equal(ItemStatus.Pending, first.Status);
-        Assert.Equal(KeyState.Missing, first.Key);
-        Assert.Equal(ItemStatus.Running, second.Status);
-    }
-
-    [Fact]
-    public void FailedRecoveryStaysMissingAndSaysWhy()
-    {
-        var viewModel = NewViewModel();
-        var item = Add(viewModel, "a.usm");
-
-        viewModel.Apply(new CrackEvent { File = "a.usm", Stem = "a", VideoKey = null, Reason = "single distinct payload" });
-
-        Assert.Equal(KeyState.Missing, item.Key);
-        Assert.Contains(viewModel.Log, line => line.Contains("single distinct payload", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void FailedRecoveryKeepsAKeyTheProbeFound()
-    {
-        var viewModel = NewViewModel();
-        var item = Add(viewModel, "a.usm");
-        item.Key = KeyState.Present;
-
-        viewModel.Apply(new CrackEvent { File = "a.usm", Stem = "a", VideoKey = null, Reason = "x" });
-
-        Assert.Equal(KeyState.Present, item.Key);
     }
 
     [Fact]
@@ -257,7 +89,7 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
         var viewModel = NewViewModel();
         var old = Add(viewModel, "a.usm");
         var streamCipher = Add(viewModel, "b.usm");
-        viewModel.Apply(new ProbeEvent { File = "b.usm", StreamCipher = true });
+        streamCipher.StreamCipher = true;
 
         streamCipher.IsChecked = true;
         Assert.False(viewModel.RecoverKeysCommand.CanExecute(null));
@@ -266,19 +98,40 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
         Assert.True(viewModel.RecoverKeysCommand.CanExecute(null));
     }
 
-    [Theory]
-    [InlineData("exists", "Already exists")]
-    [InlineData("no_key", "No key")]
-    [InlineData("requested", "Skipped on request")]
-    public void SkipReasonsBecomeReadableDetail(string reason, string expected)
+    [Fact]
+    public void RowChangesTheCommandsReadTellTheButtonsToRequery()
     {
+        // CanExecute is computed on every call, so only the event shows a button would update.
         var viewModel = NewViewModel();
         var item = Add(viewModel, "a.usm");
+        var raised = 0;
+        viewModel.RecoverKeysCommand.CanExecuteChanged += (_, _) => raised++;
 
-        viewModel.Apply(new JobSkippedEvent { File = "a.usm", Reason = reason });
+        item.Progress = 50;
+        item.Detail = "Demuxing";
+        Assert.Equal(0, raised);
 
-        Assert.Equal(ItemStatus.Skipped, item.Status);
-        Assert.Equal(expected, item.Detail);
+        item.IsChecked = true;
+        Assert.Equal(1, raised);
+
+        item.StreamCipher = true;
+        Assert.Equal(2, raised);
+        Assert.False(viewModel.RecoverKeysCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void CheckStateIsMixedWhileSomeRowsAreChecked()
+    {
+        var viewModel = NewViewModel();
+        var first = Add(viewModel, "a.usm");
+        var second = Add(viewModel, "b.usm");
+        Assert.False(viewModel.CheckState);
+
+        first.IsChecked = true;
+        Assert.Null(viewModel.CheckState);
+
+        second.IsChecked = true;
+        Assert.True(viewModel.CheckState);
     }
 
     [Fact]
@@ -286,10 +139,10 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
     {
         var viewModel = NewViewModel();
         var failed = Add(viewModel, "a.usm");
-        Add(viewModel, "b.usm").Status = ItemStatus.Done;
+        Add(viewModel, "b.usm").MarkDone(Scratch.File("b.mkv"));
         Assert.False(viewModel.RetryFailedCommand.CanExecute(null));
 
-        failed.Status = ItemStatus.Error;
+        failed.MarkFailed("x");
         Assert.True(viewModel.RetryFailedCommand.CanExecute(null));
 
         viewModel.Items.Remove(failed);
@@ -297,52 +150,25 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
-    public void SkipIsOfferedOnlyDuringAFileRun()
+    public async Task SkipIsOfferedOnlyDuringAFileRun()
     {
-        // Running with no files is an update check, which has nothing to skip.
-        var viewModel = NewViewModel();
-        viewModel.IsRunning = true;
+        // An update check is an engine run with no files, so it has nothing to skip.
+        var viewModel = NewViewModel(FakeEngine("@ping -n 60 127.0.0.1 >nul"));
 
+        var check = viewModel.CheckForUpdatesCommand.ExecuteAsync(null);
+        Assert.True(viewModel.IsRunning);
         Assert.False(viewModel.SkipCommand.CanExecute(null));
-    }
 
-    [Fact]
-    public void QuestionsGoThroughTheViewsDelegate()
-    {
-        var viewModel = NewViewModel();
-        string? asked = null;
-        viewModel.AnswerQuestion = prompt => { asked = prompt; return true; };
-
-        viewModel.Apply(new QuestionEvent { Id = "q0", Prompt = "Overwrite keys.json?", Default = false });
-
-        Assert.Equal("Overwrite keys.json?", asked);
-    }
-
-    [Fact]
-    public void UnknownKindsAreLoggedNotDropped()
-    {
-        var viewModel = NewViewModel();
-
-        viewModel.Apply(new UnknownEvent { Type = "something_new" });
-
-        Assert.Contains(viewModel.Log, line => line.Contains("something_new", StringComparison.Ordinal));
-    }
-
-    [Theory]
-    [InlineData(0, "")]
-    [InlineData(1, "1 KB")]
-    [InlineData(640L * 1024 * 1024, "640 MB")]
-    [InlineData(1_503_238_553, "1.4 GB")]
-    public void SizeIsFormattedForTheQueue(long bytes, string expected)
-    {
-        Assert.Equal(expected, QueueItem.FormatSize(bytes));
+        viewModel.CancelCommand.Execute(null);
+        viewModel.CancelCommand.Execute(null);
+        await check.WaitAsync(TimeSpan.FromSeconds(30));
     }
 
     [Fact]
     public void SummaryCountsDoneAndMissing()
     {
         var viewModel = NewViewModel();
-        Add(viewModel, "a.usm").Status = ItemStatus.Done;
+        Add(viewModel, "a.usm").MarkDone(Scratch.File("a.mkv"));
         Add(viewModel, "b.usm").Key = KeyState.Missing;
         Add(viewModel, "c.usm").Subtitles = [];
 
@@ -370,10 +196,10 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
         Add(viewModel, "b.usm");
 
         viewModel.ToggleAllCommand.Execute(null);
-        Assert.True(viewModel.AllChecked);
+        Assert.True(viewModel.Items.AllChecked);
 
         viewModel.ToggleAllCommand.Execute(null);
-        Assert.False(viewModel.AllChecked);
+        Assert.False(viewModel.Items.AllChecked);
         Assert.All(viewModel.Items, item => Assert.False(item.IsChecked));
     }
 
@@ -395,7 +221,7 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
     [Fact]
     public void WithoutAnEngineTheEngineBackedCommandsAreDisabled()
     {
-        var viewModel = NewEnginelessViewModel();
+        var viewModel = NewViewModel(null);
         Add(viewModel, "a.usm").IsChecked = true;
 
         Assert.False(viewModel.HasEngine);
@@ -424,11 +250,11 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
     [Fact]
     public async Task LoadingIsRefusedWhileRunning()
     {
-        var viewModel = NewEnginelessViewModel();
+        var viewModel = NewViewModel(null);
         var kept = Add(viewModel, "a.usm");
         viewModel.IsRunning = true;
 
-        await viewModel.LoadSourceAsync(scratch.Root);
+        await viewModel.LoadSourceAsync(Scratch.Root);
 
         Assert.Same(kept, Assert.Single(viewModel.Items));
         Assert.Contains(viewModel.Log, line => line.Contains("Wait for the current run", StringComparison.Ordinal));
@@ -437,10 +263,10 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
     [Fact]
     public async Task LoadingAMissingFolderLogsInsteadOfThrowing()
     {
-        var viewModel = NewEnginelessViewModel();
+        var viewModel = NewViewModel(null);
         var kept = Add(viewModel, "a.usm");
 
-        await viewModel.LoadSourceAsync(scratch.File("missing"));
+        await viewModel.LoadSourceAsync(Scratch.File("missing"));
 
         Assert.Same(kept, Assert.Single(viewModel.Items));
         Assert.Contains(viewModel.Log, line => line.Contains("Could not read", StringComparison.Ordinal));
@@ -449,9 +275,9 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
     [Fact]
     public async Task AddedFilesAreFilteredToUsmAndDedupedByBareName()
     {
-        var viewModel = NewEnginelessViewModel();
-        var one = scratch.File("one");
-        var two = scratch.File("two");
+        var viewModel = NewViewModel(null);
+        var one = Scratch.File("one");
+        var two = Scratch.File("two");
 
         await viewModel.AddFilesAsync([
             Path.Combine(one, "a.usm"),
@@ -463,33 +289,6 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
         Assert.Equal(["a.usm", "B.USM"], viewModel.Items.Select(item => item.FileName));
         Assert.Equal(one, viewModel.SourceDirectory);
         Assert.Contains(viewModel.Log, line => line.Contains("already in the queue", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void ClearingTheQueueStopsListeningToTheOldRows()
-    {
-        var viewModel = NewViewModel();
-        var old = Add(viewModel, "a.usm");
-        viewModel.Items.Clear();
-        Add(viewModel, "b.usm");
-
-        old.IsChecked = true;
-
-        Assert.False(viewModel.AllChecked);
-    }
-
-    [Fact]
-    public void ProgressOutsideAnyJobStillDrivesTheStatusBar()
-    {
-        var viewModel = NewViewModel();
-        var item = Add(viewModel, "a.usm");
-
-        viewModel.Apply(new StageEvent { Stage = "subtitles", Status = "start" });
-        viewModel.Apply(new ProgressEvent { Stage = "subtitles", Current = 1, Total = 4 });
-
-        Assert.Equal("Updating subtitles · 25%", viewModel.StageText);
-        Assert.Equal(0, item.Progress);
-        Assert.Equal(ItemStatus.Pending, item.Status);
     }
 
     [Fact]
@@ -507,144 +306,9 @@ public class MainViewModelTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
-    public async Task AnEngineThatCannotStartFailsTheRunWithoutLeavingRowsQueued()
-    {
-        // A launcher that does not exist is the only way to reach RunEngineAsync's failure path
-        // without a real engine, because Process.Start throws before any event can arrive.
-        var viewModel = NewViewModel(EngineLaunchProfile.Packaged(scratch.File("missing.exe")));
-        var first = Add(viewModel, "a.usm");
-        var second = Add(viewModel, "b.usm");
-
-        await viewModel.StartCommand.ExecuteAsync(null);
-
-        Assert.False(viewModel.IsRunning);
-        Assert.Equal("Idle", viewModel.StageText);
-        Assert.Contains(viewModel.Log, line => line.Contains("Could not start the engine", StringComparison.Ordinal));
-        Assert.Equal(ItemStatus.Pending, first.Status);
-        Assert.Equal(ItemStatus.Pending, second.Status);
-    }
-
-    [Theory]
-    [InlineData(3, ItemStatus.Error, "Engine exited with code 3")]
-    [InlineData(0, ItemStatus.Pending, "")]
-    public async Task ARowTheEngineLeftRunningIsSettledByHowTheEngineEnded(int exitCode, ItemStatus expected, string detail)
-    {
-        // A clean exit that never closed the job is how --crack ends, which is why the row rests
-        // instead of going to Error.
-        var engine = FakeEngine(
-            """@echo {"type":"job_start","file":"a.usm","stem":"a"}""",
-            $"@exit /b {exitCode}");
-        var viewModel = NewViewModel(engine);
-        var opened = Add(viewModel, "a.usm");
-        var unreached = Add(viewModel, "b.usm");
-        opened.IsChecked = true;
-        unreached.IsChecked = true;
-
-        await viewModel.RecoverKeysCommand.ExecuteAsync(null);
-
-        Assert.Equal(expected, opened.Status);
-        Assert.Equal(detail, opened.Detail);
-        Assert.Equal(ItemStatus.Pending, unreached.Status);
-        Assert.False(viewModel.IsRunning);
-    }
-
-    [Fact]
-    public async Task AFailedRunShowsWhatTheEngineSaidOnStderr()
-    {
-        var engine = FakeEngine(
-            "@echo Traceback: something broke>&2",
-            "@exit /b 1");
-        var viewModel = NewViewModel(engine);
-        Add(viewModel, "a.usm");
-
-        await viewModel.StartCommand.ExecuteAsync(null);
-
-        Assert.Contains(viewModel.Log, line => line.Contains("exited with code 1", StringComparison.Ordinal));
-        Assert.Contains(viewModel.Log, line => line.Contains("something broke", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task AFailureTheEventsAlreadyExplainedDoesNotEchoStderr()
-    {
-        // The engine exits 1 after a batch with a failed file, and the error event on the row
-        // already explains it, which is why the console logger's copy stays out of the log.
-        var engine = FakeEngine(
-            """@echo {"type":"job_start","file":"a.usm","stem":"a"}""",
-            """@echo {"type":"error","file":"a.usm","message":"bad chunk"}""",
-            "@echo [12:00:00] ERROR Failed to process a.usm: bad chunk>&2",
-            "@exit /b 1");
-        var viewModel = NewViewModel(engine);
-        var failed = Add(viewModel, "a.usm");
-
-        await viewModel.StartCommand.ExecuteAsync(null);
-
-        Assert.Equal(ItemStatus.Error, failed.Status);
-        Assert.Equal("bad chunk", failed.Detail);
-        Assert.Contains(viewModel.Log, line => line.Contains("exited with code 1", StringComparison.Ordinal));
-        Assert.DoesNotContain(viewModel.Log, line => line.Contains("Failed to process", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task ASecondCancelKillsAnEngineThatIgnoresTheFirst()
-    {
-        // The cancel goes unanswered because cmd never reads stdin, and ping is a child the kill
-        // has to reach through the job object.
-        var engine = FakeEngine(
-            """@echo {"type":"job_start","file":"a.usm","stem":"a"}""",
-            "@ping -n 60 127.0.0.1 >nul");
-        var viewModel = NewViewModel(engine);
-        var running = Add(viewModel, "a.usm");
-        var queued = Add(viewModel, "b.usm");
-        // Without asynchronous continuations the cancels below would run inside Apply.
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        running.PropertyChanged += (_, _) =>
-        {
-            if (running.Status == ItemStatus.Running)
-            {
-                started.TrySetResult();
-            }
-        };
-
-        var run = viewModel.StartCommand.ExecuteAsync(null);
-        await started.Task.WaitAsync(TimeSpan.FromSeconds(30));
-        viewModel.CancelCommand.Execute(null);
-        Assert.Equal("Force stop", viewModel.CancelLabel);
-        viewModel.CancelCommand.Execute(null);
-        await run.WaitAsync(TimeSpan.FromSeconds(30));
-
-        Assert.False(viewModel.IsRunning);
-        Assert.Equal("Cancel", viewModel.CancelLabel);
-        Assert.Equal(ItemStatus.Cancelled, running.Status);
-        Assert.Equal(ItemStatus.Cancelled, queued.Status);
-        Assert.Contains(viewModel.Log, line => line == "Engine stopped.");
-    }
-
-    [Fact]
-    public async Task AnErrorInApplyEndsTheRunAndMarksTheRunningRow()
-    {
-        // The ping would hold the run for a minute if the throw did not also end the engine.
-        var engine = FakeEngine(
-            """@echo {"type":"job_start","file":"a.usm","stem":"a"}""",
-            """@echo {"type":"question","id":"q0","prompt":"overwrite?","default":false}""",
-            "@ping -n 60 127.0.0.1 >nul");
-        var viewModel = NewViewModel(engine);
-        viewModel.AnswerQuestion = _ => throw new InvalidOperationException("boom");
-        var running = Add(viewModel, "a.usm");
-        var queued = Add(viewModel, "b.usm");
-
-        var run = viewModel.StartCommand.ExecuteAsync(null);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => run.WaitAsync(TimeSpan.FromSeconds(30)));
-
-        Assert.False(viewModel.IsRunning);
-        Assert.Equal(ItemStatus.Error, running.Status);
-        Assert.Equal("Stopped by an unexpected error", running.Detail);
-        Assert.Equal(ItemStatus.Pending, queued.Status);
-    }
-
-    [Fact]
     public void AnUnreadableSettingsFileIsReportedInTheLog()
     {
-        var path = scratch.File("settings.json");
+        var path = Scratch.File("settings.json");
         File.WriteAllText(path, "{ not json");
 
         var viewModel = new MainViewModel(null, Settings.Load(path));

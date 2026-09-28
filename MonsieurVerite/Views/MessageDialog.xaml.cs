@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 
-namespace MonsieurVerite;
+namespace MonsieurVerite.Views;
 
 public partial class MessageDialog : DialogWindow
 {

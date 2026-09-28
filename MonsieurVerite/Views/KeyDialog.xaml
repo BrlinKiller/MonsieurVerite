@@ -1,18 +1,19 @@
-<local:DialogWindow x:Class="MonsieurVerite.KeyDialog"
+<views:DialogWindow x:Class="MonsieurVerite.Views.KeyDialog"
                     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:local="clr-namespace:MonsieurVerite"
+                    xmlns:views="clr-namespace:MonsieurVerite.Views"
                     Title="{x:Static local:Strings.SET_KEY_TITLE}" Width="460"
                     FocusManager.FocusedElement="{Binding ElementName=KeyBox}">
 
-    <local:DialogWindow.Resources>
+    <views:DialogWindow.Resources>
         <Style x:Key="KeyField" TargetType="TextBox" BasedOn="{StaticResource OptionField}">
             <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="MinHeight" Value="32" />
             <Setter Property="Margin" Value="0,0,0,8" />
         </Style>
-    </local:DialogWindow.Resources>
+    </views:DialogWindow.Resources>
 
     <Grid>
         <StackPanel Style="{StaticResource DialogRoot}">
@@ -46,4 +47,4 @@
         </StackPanel>
         <Button Style="{StaticResource DialogCloseButton}" Content="&#xE8BB;" Click="Dismiss" />
     </Grid>
-</local:DialogWindow>
+</views:DialogWindow>
