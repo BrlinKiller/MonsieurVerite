@@ -173,7 +173,7 @@
   "X265_PARAMS": "x265 params",
   "X265_PARAMS_TIP": "Built-in tuning for the preset. 'ultrafast' to 'medium' uses the same neutral tuning parameters that improve picture quality without affecting encode speed. 'slow' to 'placebo' uses the same but with added parameters for better quality.",
   "RESET_TO_DEFAULTS": "Reset to defaults",
-  "RESET_TO_DEFAULTS_TIP": "Every setting in this dialog back to what a fresh install has. Nothing is saved until OK.",
+  "RESET_TO_DEFAULTS_TIP": "Reset all settings to default. Click on OK to confirm the changes.",
   "ABOUT_BLURB": "Monsieur Verite, the front end for Charlotte, the Genshin Impact cutscene decryption tool.",
   "BUILD": "Build",
   "UNKNOWN_BUILD": "unknown",
