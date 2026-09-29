@@ -129,7 +129,9 @@ public partial class MainWindow : Window
             await viewModel.LoadSourceAsync(viewModel.SourceDirectory);
         }
 
+        var translation = viewModel.RefreshTranslationOnStartupAsync();
         await viewModel.CheckForUpdatesOnStartupAsync();
+        await translation;
     }
 
     // A dialog disables this window, but a WM_CLOSE from outside (taskkill without /f) still

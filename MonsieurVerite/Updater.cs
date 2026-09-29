@@ -13,7 +13,155 @@ public static class Updater
     private const string LatestReleaseApi =
         "https://api.github.com/repos/The-Steambird/charlotte/releases/latest";
 
+    private const string TranslationsApi =
+        "https://api.github.com/repos/The-Steambird/MonsieurVerite/contents/MonsieurVerite/Lang?ref=master";
+
     private static readonly HttpClient Http = CreateClient();
+
+    /// <summary>
+    /// Downloads the translation on master closest to the culture into lang/ beside the exe, where
+    /// the next start picks it up, and reports whether a new file was written.
+    /// </summary>
+    public static async Task<bool> RefreshTranslationAsync(
+        string appDirectory, CultureInfo culture, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(culture);
+        if (culture.TwoLetterISOLanguageName == "en")
+        {
+            return false;
+        }
+
+        var listing = await Http.GetStringAsync(TranslationsApi, cancellationToken)
+            .ConfigureAwait(false);
+        if (PickTranslation(listing, culture) is not { } translation)
+        {
+            return false;
+        }
+
+        var json = await Http.GetStringAsync(translation.Url, cancellationToken)
+            .ConfigureAwait(false);
+        return SaveTranslation(appDirectory, translation.Language, json);
+    }
+
+    internal sealed record TranslationFile(string Language, string Url);
+
+    internal static TranslationFile? PickTranslation(string listingJson, CultureInfo culture)
+    {
+        using var document = JsonDocument.Parse(listingJson);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var urls = new Dictionary<string, string>();
+        foreach (var file in document.RootElement.EnumerateArray())
+        {
+            var name = Text(file, "name");
+            var language = Path.GetFileNameWithoutExtension(name);
+            var url = Text(file, "download_url");
+            if (Path.GetExtension(name) == ".json" && url.Length > 0 && Strings.IsCulture(language))
+            {
+                urls[language] = url;
+            }
+        }
+
+        return Strings.Closest(culture, urls.Keys) is { } closest and not "en-US"
+            ? new TranslationFile(closest, urls[closest])
+            : null;
+    }
+
+    // A download the build already has is deleted rather than kept, so a release that catches up
+    // clears it.
+    internal static bool SaveTranslation(string appDirectory, string language, string json)
+    {
+        var downloaded = JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [];
+        var builtIn = Strings.Languages.Contains(language) ? Strings.Load(language) : [];
+        if (SameStrings(downloaded, builtIn))
+        {
+            DeleteTranslation(appDirectory, language);
+            return false;
+        }
+
+        var saved = Strings.ReadDownloaded(appDirectory, language);
+        if (saved is not null && SameStrings(downloaded, saved))
+        {
+            return false;
+        }
+
+        var path = Strings.DownloadedPath(appDirectory, language);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        AtomicFile.WriteAllText(path, json);
+        return true;
+    }
+
+    private static void DeleteTranslation(string appDirectory, string language)
+    {
+        var path = Strings.DownloadedPath(appDirectory, language);
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+
+        DeleteIfEmpty(Path.GetDirectoryName(path)!);
+        DeleteIfEmpty(Path.Combine(appDirectory, "lang"));
+    }
+
+    // A release carries every translation master had when it was built, so what an older version
+    // downloaded is at best a copy and at worst out of date.
+    private static void DeleteDownloadedTranslations(string appDirectory)
+    {
+        var folder = Path.Combine(appDirectory, "lang");
+        if (!Directory.Exists(folder))
+        {
+            return;
+        }
+
+        foreach (var directory in Directory.GetDirectories(folder))
+        {
+            var language = Path.GetFileName(directory);
+            try
+            {
+                DeleteTranslation(appDirectory, language);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Debug.WriteLine($"Could not delete the {language} translation: {e.Message}");
+            }
+        }
+    }
+
+    private static bool SameStrings(
+        IReadOnlyDictionary<string, string> first, IReadOnlyDictionary<string, string> second)
+    {
+        var left = Translated(first);
+        var right = Translated(second);
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        foreach (var (key, text) in left)
+        {
+            if (right.GetValueOrDefault(key) != text)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static Dictionary<string, string> Translated(
+        IReadOnlyDictionary<string, string> strings) =>
+        strings.Where(pair => !string.IsNullOrEmpty(pair.Value)).ToDictionary();
+
+    private static void DeleteIfEmpty(string folder)
+    {
+        if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
+        {
+            Directory.Delete(folder);
+        }
+    }
 
     public static async Task<IReadOnlyList<string>> InstallLatestAsync(
         string appDirectory, IProgress<string> status, CancellationToken cancellationToken)
@@ -191,6 +339,7 @@ public static class Updater
                 failure);
         }
 
+        DeleteDownloadedTranslations(root);
         return written;
     }
 

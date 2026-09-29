@@ -63,6 +63,26 @@ public class EngineClientTests(ITestOutputHelper output)
         Assert.DoesNotContain(events, e => e is UnknownEvent { Type: "" });
     }
 
+    [Fact]
+    public async Task TheEngineIsToldTheUiLanguage()
+    {
+        using var scratch = new ScratchFolder();
+        var script = scratch.File("engine.cmd");
+        File.WriteAllText(script, """@echo {"type":"log","level":"info","message":"%CHARLOTTE_LANG%"}""");
+        using var client = new EngineClient(new EngineLaunchProfile
+        {
+            FileName = "cmd.exe",
+            BaseArguments = ["/c", script],
+            WorkingDirectory = scratch.Root,
+        });
+
+        var exit = client.Start([]);
+        var events = await client.Events.ReadAllAsync().ToListAsync();
+        await exit;
+
+        Assert.Equal(Strings.Language, Assert.IsType<LogEvent>(Assert.Single(events)).Message);
+    }
+
     [Theory]
     [InlineData("q0", true)]
     [InlineData("q1", false)]

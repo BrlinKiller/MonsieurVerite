@@ -1,11 +1,11 @@
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 
 namespace MonsieurVerite.Tests;
 
 /// <summary>
-/// Only the install half is covered, because the network half is two GET calls that are not
-/// worth mocking and PickZip covers the parsing.
+/// The GET calls are not worth mocking, so these cover the parsing and the file work around them.
 /// </summary>
 public class UpdaterTests : IDisposable
 {
@@ -119,8 +119,125 @@ public class UpdaterTests : IDisposable
     }
 
     [Fact]
+    public void InstallDeletesTheDownloadedTranslationsButNotTheEngines()
+    {
+        Updater.SaveTranslation(App(""), "de-DE", """{ "OPEN_FOLDER": "Ordner öffnen" }""");
+        Updater.SaveTranslation(App(""), "th-TH", """{ "OPEN_FOLDER": "เปิดโฟลเดอร์" }""");
+        var engine = App(Path.Combine("lang", "de-DE", "cli.json"));
+        File.WriteAllText(engine, "{}");
+
+        Updater.Install(Zip(("charlotte-gui.exe", "new gui")), App(""));
+
+        Assert.False(File.Exists(Strings.DownloadedPath(App(""), "de-DE")));
+        Assert.False(Directory.Exists(App(Path.Combine("lang", "th-TH"))));
+        Assert.True(File.Exists(engine));
+    }
+
+    [Fact]
+    public void AFailedInstallKeepsTheDownloadedTranslations()
+    {
+        Updater.SaveTranslation(App(""), "de-DE", """{ "OPEN_FOLDER": "Ordner öffnen" }""");
+        var zip = Zip(("charlotte-gui.exe", "new gui"), ("../outside.txt", "escape"));
+
+        Assert.Throws<InvalidDataException>(() => Updater.Install(zip, App("")));
+
+        Assert.True(File.Exists(Strings.DownloadedPath(App(""), "de-DE")));
+    }
+
+    [Fact]
     public void AnEmptyArchiveIsAnError()
     {
         Assert.Throws<InvalidDataException>(() => Updater.Install(Zip(), App("")));
+    }
+
+    private const string Listing = """
+        [
+          {"name": "de-DE.json", "type": "file", "download_url": "https://raw/de-DE.json"},
+          {"name": "en-US.json", "type": "file", "download_url": "https://raw/en-US.json"},
+          {"name": "zh-TW.json", "type": "file", "download_url": "https://raw/zh-TW.json"},
+          {"name": "notes.md", "type": "file", "download_url": "https://raw/notes.md"},
+          {"name": "xx-QQ.json", "type": "file", "download_url": "https://raw/xx-QQ.json"},
+          {"name": "old", "type": "dir", "download_url": null}
+        ]
+        """;
+
+    [Theory]
+    [InlineData("de-AT", "de-DE", "https://raw/de-DE.json")]
+    [InlineData("zh-HK", "zh-TW", "https://raw/zh-TW.json")]
+    public void TheClosestTranslationOnMasterIsPicked(string culture, string language, string url)
+    {
+        var picked = Updater.PickTranslation(Listing, CultureInfo.GetCultureInfo(culture));
+
+        Assert.Equal(new Updater.TranslationFile(language, url), picked);
+    }
+
+    [Theory]
+    [InlineData("en-GB")]
+    [InlineData("fr-FR")]
+    public void NothingIsPickedForEnglishOrALanguageWithNoFile(string culture)
+    {
+        Assert.Null(Updater.PickTranslation(Listing, CultureInfo.GetCultureInfo(culture)));
+        Assert.Null(Updater.PickTranslation("""{"message": "Not Found"}""", CultureInfo.GetCultureInfo(culture)));
+    }
+
+    [Fact]
+    public void ATranslationIsWrittenOnlyWhenItChanged()
+    {
+        const string first = """{ "OPEN_FOLDER": "Ordner öffnen" }""";
+        const string second = """{ "OPEN_FOLDER": "Ordner auswählen" }""";
+
+        Assert.True(Updater.SaveTranslation(App(""), "de-DE", first));
+        Assert.False(Updater.SaveTranslation(App(""), "de-DE", first));
+        Assert.True(Updater.SaveTranslation(App(""), "de-DE", second));
+
+        Assert.Equal(second, File.ReadAllText(Strings.DownloadedPath(App(""), "de-DE")));
+    }
+
+    [Fact]
+    public void ANullStringInADownloadCountsAsUntranslated()
+    {
+        Assert.False(Updater.SaveTranslation(App(""), "de-DE", """{ "OPEN_FOLDER": null }"""));
+    }
+
+    [Fact]
+    public void AnUnreadableSavedTranslationIsReplaced()
+    {
+        var path = Strings.DownloadedPath(App(""), "de-DE");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "not json");
+
+        Assert.True(Updater.SaveTranslation(App(""), "de-DE", """{ "OPEN_FOLDER": "Ordner öffnen" }"""));
+    }
+
+    // Crowdin exports a language nobody has translated yet as {}, which counts as no file.
+    [Fact]
+    public void ADownloadTheBuildAlreadyHasRemovesTheFileAndItsEmptyFolders()
+    {
+        Updater.SaveTranslation(App(""), "de-DE", """{ "OPEN_FOLDER": "Ordner öffnen" }""");
+
+        Assert.False(Updater.SaveTranslation(App(""), "de-DE", "{}"));
+
+        Assert.False(Directory.Exists(App("lang")));
+    }
+
+    [Fact]
+    public void ADownloadTheBuildAlreadyHasWritesNothingWhenNoneWasSaved()
+    {
+        Assert.False(Updater.SaveTranslation(App(""), "de-DE", "{}"));
+
+        Assert.False(Directory.Exists(App("lang")));
+    }
+
+    [Fact]
+    public void RemovingTheTranslationKeepsTheEnginesFileBesideIt()
+    {
+        Updater.SaveTranslation(App(""), "de-DE", """{ "OPEN_FOLDER": "Ordner öffnen" }""");
+        var engine = App(Path.Combine("lang", "de-DE", "cli.json"));
+        File.WriteAllText(engine, "{}");
+
+        Updater.SaveTranslation(App(""), "de-DE", "{}");
+
+        Assert.False(File.Exists(Strings.DownloadedPath(App(""), "de-DE")));
+        Assert.True(File.Exists(engine));
     }
 }

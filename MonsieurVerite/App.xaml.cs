@@ -21,7 +21,7 @@ public partial class App
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        Strings.Use(CultureInfo.CurrentUICulture);
+        Strings.Use(CultureInfo.CurrentUICulture, AppContext.BaseDirectory);
         base.OnStartup(e);
         Updater.WaitForPredecessor(e.Args);
         Updater.DeleteStaleFiles(AppContext.BaseDirectory);

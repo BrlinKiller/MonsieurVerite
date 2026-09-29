@@ -58,6 +58,7 @@ public sealed class EngineClient : IDisposable
             StandardErrorEncoding = Utf8,
             StandardInputEncoding = Utf8,
         };
+        startInfo.Environment["CHARLOTTE_LANG"] = Strings.Language;
 
         foreach (var argument in profile.BaseArguments.Concat(arguments))
         {

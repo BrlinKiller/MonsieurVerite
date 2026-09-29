@@ -485,6 +485,30 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanRunEngine))]
     private Task CheckForUpdatesAsync() => RunUpdateCheckAsync(quiet: false);
 
+    public async Task RefreshTranslationOnStartupAsync()
+    {
+        if (!settings.CheckForUpdatesOnStartup)
+        {
+            return;
+        }
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try
+        {
+            if (await Updater.RefreshTranslationAsync(AppContext.BaseDirectory,
+                    CultureInfo.GetCultureInfo(Strings.Language), timeout.Token).ConfigureAwait(true))
+            {
+                AppendLog(Strings.TRANSLATION_UPDATED_LOG);
+            }
+        }
+        catch (Exception e) when (e is HttpRequestException or OperationCanceledException
+                                      or IOException or JsonException
+                                      or UnauthorizedAccessException)
+        {
+            Debug.WriteLine(e);
+        }
+    }
+
     public Task CheckForUpdatesOnStartupAsync() =>
         settings.CheckForUpdatesOnStartup && CanRunEngine
             ? RunUpdateCheckAsync(quiet: true)
