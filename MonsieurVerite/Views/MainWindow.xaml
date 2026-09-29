@@ -40,12 +40,11 @@
                 BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1">
             <DockPanel LastChildFill="False">
                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="12,0,0,0">
-                    <Path Style="{StaticResource Icon}" Data="{StaticResource LogoIcon}"
-                          Stroke="{StaticResource AccentBrush}" StrokeThickness="2" Width="18"
-                          Height="18" Margin="2,0,8,0" />
+                    <Image Source="/logo.png" Width="40" Height="40" Margin="-8,0,0,0"
+                           RenderOptions.BitmapScalingMode="HighQuality" />
                     <TextBlock Text="charlotte" FontWeight="SemiBold"
                                Foreground="{StaticResource TextBrush}"
-                               VerticalAlignment="Center" Margin="0,0,4,0" />
+                               VerticalAlignment="Center" Margin="4,0,4,0" />
                     <Border Style="{StaticResource ToolbarDivider}" />
                     <Button Style="{StaticResource ToolbarButton}"
                             Command="{Binding OpenFolderCommand}"

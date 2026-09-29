@@ -5,6 +5,7 @@
         <UseWPF>true</UseWPF>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <ApplicationManifest>app.manifest</ApplicationManifest>
+        <ApplicationIcon>icon.ico</ApplicationIcon>
         <AssemblyName>charlotte-gui</AssemblyName>
         <RootNamespace>MonsieurVerite</RootNamespace>
         <Product>charlotte</Product>
@@ -31,6 +32,7 @@
 
     <ItemGroup>
         <EmbeddedResource Include="Lang\*.json" LogicalName="Lang/%(Filename)%(Extension)" />
+        <Resource Include="logo.png" />
     </ItemGroup>
 
     <UsingTask TaskName="GenerateStrings" TaskFactory="RoslynCodeTaskFactory"
