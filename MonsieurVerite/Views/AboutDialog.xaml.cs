@@ -1,24 +1,22 @@
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Navigation;
-using MonsieurVerite.ViewModels;
 
 namespace MonsieurVerite.Views;
 
 public partial class AboutDialog : DialogWindow
 {
-    public AboutDialog(MainViewModel viewModel)
+    public AboutDialog(bool hasEngine, string? engineVersion)
     {
-        ArgumentNullException.ThrowIfNull(viewModel);
         InitializeComponent();
 
         TitleText.Text = $"charlotte {App.Version}";
         BuildText.Text = App.Build ?? Strings.UNKNOWN_BUILD;
-        if (viewModel.Engine is null)
+        if (!hasEngine)
         {
             EngineText.Text = Strings.NO_ENGINE_FOUND;
         }
-        else if (viewModel.EngineVersion is { } version)
+        else if (engineVersion is { } version)
         {
             EngineText.Text = $"charlotte-cli {version}";
         }
@@ -40,8 +38,8 @@ public partial class AboutDialog : DialogWindow
     private static Hyperlink Link(string text, string uri) =>
         new(new Run(text)) { NavigateUri = new Uri(uri) };
 
-    // A translation may move the links, so the text is split around its placeholders rather than
-    // written as runs in the xaml.
+    // The text is split around its placeholders instead of written as runs in the xaml, because a
+    // translation may move the links.
     private static void AppendFormat(
         TextBlock block, string key, params (string Name, Inline Link)[] links)
     {

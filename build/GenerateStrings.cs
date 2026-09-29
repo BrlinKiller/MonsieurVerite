@@ -6,8 +6,8 @@ using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 
 /// <summary>
-/// Writes the <c>Strings</c> members from en-US.json: a property for each plain string, and a
-/// method for each string with placeholders.
+/// Writes a <c>Strings</c> property for each plain string in en-US.json and a method for each
+/// string with placeholders.
 /// </summary>
 public class GenerateStrings : Task
 {

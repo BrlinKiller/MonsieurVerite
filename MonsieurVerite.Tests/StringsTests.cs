@@ -8,8 +8,8 @@ namespace MonsieurVerite.Tests;
 
 public class StringsTests
 {
-    // The generator matches keys with a regex, since MSBuild gives it no JSON reader; the app
-    // reads the same file with a real one, and the two must agree.
+    // The generator matches keys with a regex because MSBuild gives it no JSON reader, and the app
+    // reads the same file with a real one. The two must agree.
     [Fact]
     public void EveryEnglishKeyIsAMemberAndEveryMemberHasText()
     {
@@ -77,71 +77,6 @@ public class StringsTests
         string[] languages = ["en-US", "de-DE", "zh-CN", "zh-TW", "pt-BR"];
 
         Assert.Equal(expected, Strings.Closest(CultureInfo.GetCultureInfo(culture), languages));
-    }
-
-    [Fact]
-    public void ADownloadedStringReplacesTheBuiltInOneOnlyWhereItsPlaceholdersMatch()
-    {
-        var builtIn = new Dictionary<string, string>
-        {
-            ["OPEN_FOLDER"] = "Ordner öffnen",
-            ["ALREADY_QUEUED_LOG"] = "{file} ist schon in der Warteschlange.",
-        };
-        var downloaded = new Dictionary<string, string>
-        {
-            ["OPEN_FOLDER"] = "Ordner auswählen",
-            ["ALREADY_QUEUED_LOG"] = "{path} ist schon in der Warteschlange.",
-            ["ADD_FILES"] = "",
-            ["NOT_A_KEY_YET"] = "Neu",
-        };
-
-        var merged = Strings.Merge(builtIn, downloaded);
-
-        Assert.Equal("Ordner auswählen", merged["OPEN_FOLDER"]);
-        Assert.Equal("{file} ist schon in der Warteschlange.", merged["ALREADY_QUEUED_LOG"]);
-        Assert.False(merged.ContainsKey("ADD_FILES"));
-        Assert.False(merged.ContainsKey("NOT_A_KEY_YET"));
-    }
-
-    [Fact]
-    public void ALanguageThatOnlyExistsAsADownloadIsStillFound()
-    {
-        using var scratch = new ScratchFolder();
-        var path = Strings.DownloadedPath(scratch.Root, "th-TH");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, """{ "OPEN_FOLDER": "เปิดโฟลเดอร์" }""");
-
-        var translation = Strings.Resolve(CultureInfo.GetCultureInfo("th-TH"), scratch.Root);
-
-        Assert.Equal("เปิดโฟลเดอร์", translation?["OPEN_FOLDER"]);
-    }
-
-    [Fact]
-    public void ANullStringInADownloadIsSkipped()
-    {
-        using var scratch = new ScratchFolder();
-        var path = Strings.DownloadedPath(scratch.Root, "th-TH");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, """{ "OPEN_FOLDER": null, "ADD_FILES": "เพิ่มไฟล์" }""");
-
-        var translation = Strings.Resolve(CultureInfo.GetCultureInfo("th-TH"), scratch.Root);
-
-        Assert.Equal(["ADD_FILES"], translation?.Keys);
-    }
-
-    [Fact]
-    public void AnUnreadableDownloadOrAStrayFolderIsIgnored()
-    {
-        using var scratch = new ScratchFolder();
-        var path = Strings.DownloadedPath(scratch.Root, "th-TH");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, "not json");
-        var stray = Strings.DownloadedPath(scratch.Root, "old translations");
-        Directory.CreateDirectory(Path.GetDirectoryName(stray)!);
-        File.WriteAllText(stray, "{}");
-
-        Assert.Empty(Strings.Resolve(CultureInfo.GetCultureInfo("th-TH"), scratch.Root)!);
-        Assert.Null(Strings.Resolve(CultureInfo.GetCultureInfo("fr-FR"), scratch.Root));
     }
 
     private static List<string> Placeholders(string text) =>

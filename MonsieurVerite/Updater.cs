@@ -13,162 +13,11 @@ public static class Updater
     private const string LatestReleaseApi =
         "https://api.github.com/repos/The-Steambird/charlotte/releases/latest";
 
-    private const string TranslationsApi =
-        "https://api.github.com/repos/The-Steambird/MonsieurVerite/contents/MonsieurVerite/Lang?ref=master";
-
-    private static readonly HttpClient Http = CreateClient();
-
-    /// <summary>
-    /// Downloads the translation on master closest to the culture into lang/ beside the exe, where
-    /// the next start picks it up, and reports whether a new file was written.
-    /// </summary>
-    public static async Task<bool> RefreshTranslationAsync(
-        string appDirectory, CultureInfo culture, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(culture);
-        if (culture.TwoLetterISOLanguageName == "en")
-        {
-            return false;
-        }
-
-        var listing = await Http.GetStringAsync(TranslationsApi, cancellationToken)
-            .ConfigureAwait(false);
-        if (PickTranslation(listing, culture) is not { } translation)
-        {
-            return false;
-        }
-
-        var json = await Http.GetStringAsync(translation.Url, cancellationToken)
-            .ConfigureAwait(false);
-        return SaveTranslation(appDirectory, translation.Language, json);
-    }
-
-    internal sealed record TranslationFile(string Language, string Url);
-
-    internal static TranslationFile? PickTranslation(string listingJson, CultureInfo culture)
-    {
-        using var document = JsonDocument.Parse(listingJson);
-        if (document.RootElement.ValueKind != JsonValueKind.Array)
-        {
-            return null;
-        }
-
-        var urls = new Dictionary<string, string>();
-        foreach (var file in document.RootElement.EnumerateArray())
-        {
-            var name = Text(file, "name");
-            var language = Path.GetFileNameWithoutExtension(name);
-            var url = Text(file, "download_url");
-            if (Path.GetExtension(name) == ".json" && url.Length > 0 && Strings.IsCulture(language))
-            {
-                urls[language] = url;
-            }
-        }
-
-        return Strings.Closest(culture, urls.Keys) is { } closest and not "en-US"
-            ? new TranslationFile(closest, urls[closest])
-            : null;
-    }
-
-    // A download the build already has is deleted rather than kept, so a release that catches up
-    // clears it.
-    internal static bool SaveTranslation(string appDirectory, string language, string json)
-    {
-        var downloaded = JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [];
-        var builtIn = Strings.Languages.Contains(language) ? Strings.Load(language) : [];
-        if (SameStrings(downloaded, builtIn))
-        {
-            DeleteTranslation(appDirectory, language);
-            return false;
-        }
-
-        var saved = Strings.ReadDownloaded(appDirectory, language);
-        if (saved is not null && SameStrings(downloaded, saved))
-        {
-            return false;
-        }
-
-        var path = Strings.DownloadedPath(appDirectory, language);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        AtomicFile.WriteAllText(path, json);
-        return true;
-    }
-
-    private static void DeleteTranslation(string appDirectory, string language)
-    {
-        var path = Strings.DownloadedPath(appDirectory, language);
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
-
-        DeleteIfEmpty(Path.GetDirectoryName(path)!);
-        DeleteIfEmpty(Path.Combine(appDirectory, "lang"));
-    }
-
-    // A release carries every translation master had when it was built, so what an older version
-    // downloaded is at best a copy and at worst out of date.
-    private static void DeleteDownloadedTranslations(string appDirectory)
-    {
-        var folder = Path.Combine(appDirectory, "lang");
-        if (!Directory.Exists(folder))
-        {
-            return;
-        }
-
-        foreach (var directory in Directory.GetDirectories(folder))
-        {
-            var language = Path.GetFileName(directory);
-            try
-            {
-                DeleteTranslation(appDirectory, language);
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                Debug.WriteLine($"Could not delete the {language} translation: {e.Message}");
-            }
-        }
-    }
-
-    private static bool SameStrings(
-        IReadOnlyDictionary<string, string> first, IReadOnlyDictionary<string, string> second)
-    {
-        var left = Translated(first);
-        var right = Translated(second);
-        if (left.Count != right.Count)
-        {
-            return false;
-        }
-
-        foreach (var (key, text) in left)
-        {
-            if (right.GetValueOrDefault(key) != text)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static Dictionary<string, string> Translated(
-        IReadOnlyDictionary<string, string> strings) =>
-        strings.Where(pair => !string.IsNullOrEmpty(pair.Value)).ToDictionary();
-
-    private static void DeleteIfEmpty(string folder)
-    {
-        if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
-        {
-            Directory.Delete(folder);
-        }
-    }
+    internal static readonly HttpClient Http = CreateClient();
 
     public static async Task<IReadOnlyList<string>> InstallLatestAsync(
         string appDirectory, IProgress<string> status, CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(appDirectory);
-        ArgumentNullException.ThrowIfNull(status);
-
         status.Report(Strings.FINDING_DOWNLOAD);
         var asset = await FindZipAsync(cancellationToken).ConfigureAwait(false)
                     ?? throw new InvalidDataException(Strings.UPDATE_NO_ZIP);
@@ -210,7 +59,6 @@ public static class Updater
 
     internal static ReleaseAsset? PickZip(string releaseJson)
     {
-        ArgumentNullException.ThrowIfNull(releaseJson);
         using var document = JsonDocument.Parse(releaseJson);
         if (!document.RootElement.TryGetProperty("assets", out var assets) ||
             assets.ValueKind != JsonValueKind.Array)
@@ -238,7 +86,7 @@ public static class Updater
         return null;
     }
 
-    private static string Text(JsonElement element, string property) =>
+    internal static string Text(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()!
             : "";
@@ -282,9 +130,6 @@ public static class Updater
 
     public static IReadOnlyList<string> Install(string zipPath, string appDirectory)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(zipPath);
-        ArgumentException.ThrowIfNullOrWhiteSpace(appDirectory);
-
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(appDirectory));
         using var archive = ZipFile.OpenRead(zipPath);
         // Windows archivers are known to write backslashes where the zip spec says slash.
@@ -292,19 +137,13 @@ public static class Updater
             .Select(entry => (Entry: entry, Name: entry.FullName.Replace('\\', '/')))
             .Where(file => !file.Name.EndsWith('/'))
             .ToList();
-        if (entries.Count == 0)
-        {
-            throw new InvalidDataException(Strings.UPDATE_ARCHIVE_EMPTY);
-        }
-
-        var prefix = CommonFolder(entries.Select(file => file.Name));
         var movedAside = new List<(string Original, string Stale)>();
         var written = new List<string>();
         try
         {
             foreach (var (entry, name) in entries)
             {
-                var relative = name[prefix.Length..].Replace('/', Path.DirectorySeparatorChar);
+                var relative = name.Replace('/', Path.DirectorySeparatorChar);
                 var target = Path.GetFullPath(Path.Combine(root, relative));
                 if (!target.StartsWith(root + Path.DirectorySeparatorChar,
                         StringComparison.OrdinalIgnoreCase))
@@ -339,7 +178,7 @@ public static class Updater
                 failure);
         }
 
-        DeleteDownloadedTranslations(root);
+        Translations.DeleteAll(root);
         return written;
     }
 
@@ -376,7 +215,6 @@ public static class Updater
 
     public static void DeleteStaleFiles(string appDirectory)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(appDirectory);
         // Only the top level is swept, because the bundle is flat and the app folder also holds the
         // user's output and subtitle cache.
         foreach (var stale in Directory.EnumerateFiles(appDirectory, "*.old"))
@@ -428,24 +266,6 @@ public static class Updater
         {
             // Already gone.
         }
-    }
-
-    private static string CommonFolder(IEnumerable<string> names)
-    {
-        string? prefix = null;
-        foreach (var name in names)
-        {
-            var slash = name.IndexOf('/', StringComparison.Ordinal);
-            var folder = slash < 0 ? "" : name[..(slash + 1)];
-            if (folder.Length == 0 || (prefix is not null && prefix != folder))
-            {
-                return "";
-            }
-
-            prefix = folder;
-        }
-
-        return prefix ?? "";
     }
 
     private static HttpClient CreateClient()

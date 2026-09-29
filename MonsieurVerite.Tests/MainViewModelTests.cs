@@ -9,24 +9,48 @@ namespace MonsieurVerite.Tests;
 public class MainViewModelTests(ITestOutputHelper output) : ViewModelTest
 {
     [Theory]
-    [InlineData(true, true)]
-    [InlineData(false, false)]
-    public async Task StartupCheckAsksOnlyWhenAReleaseIsOut(bool available, bool asked)
+    [InlineData("\"available\":true", true, "Charlotte 1.1 is available (running 1.0).")]
+    [InlineData("\"available\":false", false, "Charlotte 1.0 is up to date.")]
+    [InlineData("\"available\":false,\"reason\":\"offline\"", false, "Update check failed: offline")]
+    public async Task StartupCheckLogsTheResultAndAsksOnlyWhenAReleaseIsOut(
+        string fields, bool asked, string logged)
     {
         var engine = FakeEngine(
-            $$"""@echo {"type":"update","current":"1.0","latest":"1.1","available":{{available.ToString().ToLowerInvariant()}}}""");
+            $$"""@echo {"type":"update","current":"1.0","latest":"1.1",{{fields}}}""");
         var viewModel = NewViewModel(engine);
-        var confirmed = false;
-        viewModel.ConfirmUpdate = _ =>
+        Message? shown = null;
+        viewModel.ShowMessage = message =>
         {
-            confirmed = true;
+            shown = message;
             return false;
         };
 
         await viewModel.CheckForUpdatesOnStartupAsync();
 
-        Assert.Equal(asked, confirmed);
+        Assert.Equal(asked, shown is not null);
+        Assert.Contains(logged, viewModel.Log);
         Assert.DoesNotContain(Strings.NO_UPDATE_RESULT_LOG, viewModel.Log);
+    }
+
+    [Theory]
+    [InlineData("\"available\":false", false)]
+    [InlineData("\"available\":false,\"reason\":\"offline\"", true)]
+    public async Task ACheckFromTheMenuSaysWhenThereIsNothingToInstall(string fields, bool failed)
+    {
+        var engine = FakeEngine(
+            $$"""@echo {"type":"update","current":"1.0","latest":"1.1",{{fields}}}""");
+        var viewModel = NewViewModel(engine);
+        Message? shown = null;
+        viewModel.ShowMessage = message =>
+        {
+            shown = message;
+            return false;
+        };
+
+        await viewModel.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        var expected = failed ? Strings.UPDATE_CHECK_FAILED_TITLE : Strings.UP_TO_DATE_TITLE;
+        Assert.Equal(expected, shown?.Title);
     }
 
     [Fact]
@@ -40,13 +64,43 @@ public class MainViewModelTests(ITestOutputHelper output) : ViewModelTest
             CheckForUpdatesOnStartup = false,
         };
         var viewModel = new MainViewModel(engine, settings);
-        var confirmed = false;
-        viewModel.ConfirmUpdate = _ => confirmed = true;
+        var shown = false;
+        viewModel.ShowMessage = _ => shown = true;
 
         await viewModel.CheckForUpdatesOnStartupAsync();
 
-        Assert.False(confirmed);
+        Assert.False(shown);
         Assert.DoesNotContain(viewModel.Log, line => line.Contains("1.1", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task StartupLoadsTheLastFolderBeforeTheWindowIsShownAndTheEngineNoticeAfter()
+    {
+        var folder = Scratch.File("usm");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "a.usm"), "");
+        var settings = new Settings
+        {
+            EnginePath = Scratch.File("charlotte-cli.exe"),
+            SourceDirectory = folder,
+        };
+        var viewModel = new MainViewModel(null, settings);
+        Message? shown = null;
+        viewModel.ShowMessage = message =>
+        {
+            shown = message;
+            return false;
+        };
+        var windowShown = new TaskCompletionSource();
+
+        var startup = viewModel.StartupAsync(windowShown.Task);
+        Assert.Equal("a.usm", Assert.Single(viewModel.Items).FileName);
+        Assert.Null(shown);
+
+        windowShown.SetResult();
+        await startup;
+        Assert.Equal(Strings.ENGINE_MISSING_TITLE, shown?.Title);
+        Assert.Contains(viewModel.EnginePath, shown?.Detail, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -101,7 +155,8 @@ public class MainViewModelTests(ITestOutputHelper output) : ViewModelTest
     [Fact]
     public void RowChangesTheCommandsReadTellTheButtonsToRequery()
     {
-        // CanExecute is computed on every call, so only the event shows a button would update.
+        // The test counts the event because CanExecute is computed on every call and cannot show
+        // whether a button would update.
         var viewModel = NewViewModel();
         var item = Add(viewModel, "a.usm");
         var raised = 0;
@@ -152,7 +207,7 @@ public class MainViewModelTests(ITestOutputHelper output) : ViewModelTest
     [Fact]
     public async Task SkipIsOfferedOnlyDuringAFileRun()
     {
-        // An update check is an engine run with no files, so it has nothing to skip.
+        // An update check has nothing to skip because it is an engine run with no files.
         var viewModel = NewViewModel(FakeEngine("@ping -n 60 127.0.0.1 >nul"));
 
         var check = viewModel.CheckForUpdatesCommand.ExecuteAsync(null);
@@ -245,19 +300,6 @@ public class MainViewModelTests(ITestOutputHelper output) : ViewModelTest
         Assert.False(viewModel.RecoverKeysCommand.CanExecute(null));
         Assert.False(viewModel.RemoveCheckedCommand.CanExecute(null));
         Assert.True(viewModel.CancelCommand.CanExecute(null));
-    }
-
-    [Fact]
-    public async Task LoadingIsRefusedWhileRunning()
-    {
-        var viewModel = NewViewModel(null);
-        var kept = Add(viewModel, "a.usm");
-        viewModel.IsRunning = true;
-
-        await viewModel.LoadSourceAsync(Scratch.Root);
-
-        Assert.Same(kept, Assert.Single(viewModel.Items));
-        Assert.Contains(viewModel.Log, line => line.Contains("Wait for the current run", StringComparison.Ordinal));
     }
 
     [Fact]

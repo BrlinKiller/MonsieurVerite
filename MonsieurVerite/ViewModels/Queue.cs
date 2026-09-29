@@ -40,14 +40,12 @@ public sealed class QueueItems : ObservableCollection<QueueItem>
 
     protected override void InsertItem(int index, QueueItem item)
     {
-        ArgumentNullException.ThrowIfNull(item);
         item.PropertyChanged += OnRowChanged;
         base.InsertItem(index, item);
     }
 
     protected override void SetItem(int index, QueueItem item)
     {
-        ArgumentNullException.ThrowIfNull(item);
         this[index].PropertyChanged -= OnRowChanged;
         item.PropertyChanged += OnRowChanged;
         base.SetItem(index, item);
@@ -195,7 +193,6 @@ public sealed partial class QueueItem : ObservableObject
 
     public void ApplyProbe(ProbeEvent probe)
     {
-        ArgumentNullException.ThrowIfNull(probe);
         Key = probe.Key ? KeyState.Present : KeyState.Missing;
         Version = probe.Version;
         Subtitles = probe.Subtitles;

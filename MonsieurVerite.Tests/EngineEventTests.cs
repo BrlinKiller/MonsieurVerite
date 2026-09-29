@@ -67,7 +67,6 @@ public class EngineEventTests
     }
 
     [Theory]
-    [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("not json at all")]
@@ -76,7 +75,7 @@ public class EngineEventTests
     [InlineData("\"a bare string\"")]
     [InlineData("{\"no_type_field\":1}")]
     [InlineData("{\"type\":42}")]
-    public void MalformedLinesBecomeUnknownRatherThanThrowing(string? line)
+    public void MalformedLinesBecomeUnknownRatherThanThrowing(string line)
     {
         Assert.IsType<UnknownEvent>(EngineEvent.Parse(line));
     }

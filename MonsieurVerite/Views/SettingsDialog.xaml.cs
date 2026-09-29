@@ -12,7 +12,6 @@ public partial class SettingsDialog : DialogWindow
 
     public SettingsDialog(Settings settings)
     {
-        ArgumentNullException.ThrowIfNull(settings);
         InitializeComponent();
         this.settings = settings;
         working = settings.Options.Clone();

@@ -219,12 +219,13 @@ internal sealed class EngineRun(MainViewModel owner, EngineLaunchProfile profile
                 break;
 
             case UpdateEvent update:
-                owner.AppendLog(UpdateLog(update));
                 Update = update;
                 break;
 
             case QuestionEvent question:
-                var answer = owner.AnswerQuestion?.Invoke(question.Prompt) ?? question.Default;
+                var prompt = new Message(Strings.QUESTION_TITLE, question.Prompt, Strings.YES,
+                    Strings.NO);
+                var answer = owner.ShowMessage?.Invoke(prompt) ?? question.Default;
                 client?.SendAnswer(question.Id, answer);
                 break;
 
@@ -265,21 +266,6 @@ internal sealed class EngineRun(MainViewModel owner, EngineLaunchProfile profile
         "requested" => Strings.SKIP_REQUESTED_DETAIL,
         _ => reason,
     };
-
-    private static string UpdateLog(UpdateEvent update)
-    {
-        if (update.Available)
-        {
-            return Strings.UPDATE_AVAILABLE_LOG(update.Latest, update.Current);
-        }
-
-        if (update.Reason is { Length: > 0 } reason)
-        {
-            return Strings.UPDATE_CHECK_FAILED_LOG(reason);
-        }
-
-        return Strings.UP_TO_DATE_LOG(update.Current);
-    }
 
     private void RecordRecoveredKey(string stem, ulong videoKey)
     {

@@ -54,7 +54,6 @@ public sealed class Settings
 
     public static Settings Load(string path)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
         try
         {
             if (File.Exists(path))

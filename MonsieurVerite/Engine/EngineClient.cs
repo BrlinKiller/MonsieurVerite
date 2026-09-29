@@ -11,7 +11,6 @@ public sealed class EngineClient : IDisposable
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false);
     private readonly EngineLaunchProfile profile;
     private readonly JobObject job = new();
-    private readonly Lock stdinGate = new();
     private readonly Queue<string> standardErrorTail = new();
 
     private readonly Channel<EngineEvent> events = Channel.CreateUnbounded<EngineEvent>(
@@ -20,11 +19,7 @@ public sealed class EngineClient : IDisposable
     private Process? process;
     private bool disposed;
 
-    public EngineClient(EngineLaunchProfile profile)
-    {
-        ArgumentNullException.ThrowIfNull(profile);
-        this.profile = profile;
-    }
+    public EngineClient(EngineLaunchProfile profile) => this.profile = profile;
 
     /// <summary>Completes once the engine has exited and both of its pipes are drained.</summary>
     public ChannelReader<EngineEvent> Events => events.Reader;
@@ -38,7 +33,6 @@ public sealed class EngineClient : IDisposable
     /// <returns>The exit code, completing after the last event has been written.</returns>
     public Task<int> Start(IReadOnlyList<string> arguments)
     {
-        ArgumentNullException.ThrowIfNull(arguments);
         ObjectDisposedException.ThrowIf(disposed, this);
         if (process is not null)
         {
@@ -72,22 +66,14 @@ public sealed class EngineClient : IDisposable
         return PumpAsync(started);
     }
 
-    public void SendAnswer(string id, bool value)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(id);
-        Send(AnswerCommand(id, value));
-    }
+    public void SendAnswer(string id, bool value) => Send(AnswerCommand(id, value));
 
     internal static string AnswerCommand(string id, bool value) =>
         JsonSerializer.Serialize(new { type = "answer", id, value });
 
     public void SendCancel() => Send("""{"type":"cancel"}""");
 
-    public void SendSkip(string file)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(file);
-        Send(SkipCommand(file));
-    }
+    public void SendSkip(string file) => Send(SkipCommand(file));
 
     internal static string SkipCommand(string file) =>
         JsonSerializer.Serialize(new { type = "skip", file });
@@ -110,23 +96,14 @@ public sealed class EngineClient : IDisposable
 
     private void Send(string json)
     {
-        var target = process;
-        if (target is null || disposed)
+        try
         {
-            return;
+            process!.StandardInput.Write(json + "\n");
+            process.StandardInput.Flush();
         }
-
-        lock (stdinGate)
+        catch (Exception e) when (e is IOException or ObjectDisposedException)
         {
-            try
-            {
-                target.StandardInput.Write(json + "\n");
-                target.StandardInput.Flush();
-            }
-            catch (Exception e) when (e is IOException or ObjectDisposedException)
-            {
-                // The engine already exited and closed the pipe.
-            }
+            // The engine already exited and closed the pipe.
         }
     }
 

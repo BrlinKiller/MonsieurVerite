@@ -13,9 +13,6 @@ public static class RecoveredKeys
     /// <returns>Where an unreadable file was moved aside, or null.</returns>
     public static string? Add(string path, string stem, ulong videoKey)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        ArgumentException.ThrowIfNullOrWhiteSpace(stem);
-
         var (root, setAside) = Load(path);
         if (root["list"] is not JsonArray list)
         {

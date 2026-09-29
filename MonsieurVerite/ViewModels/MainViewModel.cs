@@ -19,7 +19,6 @@ public sealed partial class MainViewModel : ObservableObject
 
     public MainViewModel(EngineLaunchProfile? engine, Settings settings)
     {
-        ArgumentNullException.ThrowIfNull(settings);
         this.settings = settings;
         Engine = engine;
 
@@ -62,11 +61,10 @@ public sealed partial class MainViewModel : ObservableObject
 
     public Action<string>? CopyText { get; set; }
 
-    public Func<string, bool>? AnswerQuestion { get; set; }
+    /// <summary>Shows a message and reports whether its primary button was pressed.</summary>
+    public Func<Message, bool>? ShowMessage { get; set; }
 
-    public Func<UpdateEvent, bool>? ConfirmUpdate { get; set; }
-
-    public Action? RestartRequested { get; set; }
+    public Action? CloseWindow { get; set; }
 
     public string RecoveredKeysPath => settings.RecoveredKeysPath;
 
@@ -154,13 +152,6 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task LoadSourceAsync(string directory)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
-        if (IsRunning)
-        {
-            AppendLog(Strings.BUSY_SOURCE_FOLDER_LOG);
-            return;
-        }
-
         if (ListCutscenes(directory) is not { } paths)
         {
             return;
@@ -173,13 +164,6 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task AddFilesAsync(IEnumerable<string> paths)
     {
-        ArgumentNullException.ThrowIfNull(paths);
-        if (IsRunning)
-        {
-            AppendLog(Strings.BUSY_ADD_FILES_LOG);
-            return;
-        }
-
         var added = new List<QueueItem>();
         foreach (var path in paths.SelectMany(Expand))
         {
@@ -482,10 +466,28 @@ public sealed partial class MainViewModel : ObservableObject
 
     public void Shutdown() => cancellation?.Cancel();
 
-    [RelayCommand(CanExecute = nameof(CanRunEngine))]
-    private Task CheckForUpdatesAsync() => RunUpdateCheckAsync(quiet: false);
+    // The folder loads before the first frame, which keeps the empty queue from flashing, and a
+    // dialog opened before the window is on screen would appear alone on the desktop.
+    public async Task StartupAsync(Task windowShown)
+    {
+        if (Directory.Exists(SourceDirectory))
+        {
+            await LoadSourceAsync(SourceDirectory).ConfigureAwait(true);
+        }
 
-    public async Task RefreshTranslationOnStartupAsync()
+        await windowShown.ConfigureAwait(true);
+        if (Engine is null)
+        {
+            ShowMessage?.Invoke(new Message(Strings.ENGINE_MISSING_TITLE,
+                Strings.ENGINE_MISSING_MESSAGE, Detail: Strings.ENGINE_MISSING_DETAIL(EnginePath)));
+        }
+
+        var translation = RefreshTranslationOnStartupAsync();
+        await CheckForUpdatesOnStartupAsync().ConfigureAwait(true);
+        await translation.ConfigureAwait(true);
+    }
+
+    private async Task RefreshTranslationOnStartupAsync()
     {
         if (!settings.CheckForUpdatesOnStartup)
         {
@@ -495,7 +497,7 @@ public sealed partial class MainViewModel : ObservableObject
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         try
         {
-            if (await Updater.RefreshTranslationAsync(AppContext.BaseDirectory,
+            if (await Translations.RefreshAsync(AppContext.BaseDirectory,
                     CultureInfo.GetCultureInfo(Strings.Language), timeout.Token).ConfigureAwait(true))
             {
                 AppendLog(Strings.TRANSLATION_UPDATED_LOG);
@@ -509,14 +511,17 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    public Task CheckForUpdatesOnStartupAsync() =>
+    [RelayCommand(CanExecute = nameof(CanRunEngine))]
+    private Task CheckForUpdatesAsync() => UpdateAsync(quiet: false);
+
+    internal Task CheckForUpdatesOnStartupAsync() =>
         settings.CheckForUpdatesOnStartup && CanRunEngine
-            ? RunUpdateCheckAsync(quiet: true)
+            ? UpdateAsync(quiet: true)
             : Task.CompletedTask;
 
     // Quiet leaves "up to date" and "could not check" to the log, because an offline start would
     // otherwise meet a dialog every time.
-    private async Task RunUpdateCheckAsync(bool quiet)
+    private async Task UpdateAsync(bool quiet)
     {
         var check = await RunEngineAsync(["--update"], 0).ConfigureAwait(true);
         if (check.Update is not { } update)
@@ -525,15 +530,39 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
-        if (quiet && !update.Available)
+        if (!update.Available && update.Reason is { Length: > 0 } reason)
         {
+            AppendLog(Strings.UPDATE_CHECK_FAILED_LOG(reason));
+            if (!quiet)
+            {
+                ShowMessage?.Invoke(new Message(Strings.UPDATE_CHECK_FAILED_TITLE, reason));
+            }
+
             return;
         }
 
-        var install = ConfirmUpdate?.Invoke(update) ?? false;
-        if (install && update.Available && await InstallUpdateAsync().ConfigureAwait(true))
+        if (!update.Available)
         {
-            RestartRequested?.Invoke();
+            AppendLog(Strings.UP_TO_DATE_LOG(update.Current));
+            if (!quiet)
+            {
+                ShowMessage?.Invoke(new Message(Strings.UP_TO_DATE_TITLE,
+                    Strings.UP_TO_DATE_MESSAGE(update.Current)));
+            }
+
+            return;
+        }
+
+        AppendLog(Strings.UPDATE_AVAILABLE_LOG(update.Latest, update.Current));
+        var notes = update.Notes is { Length: > 1200 } text ? text[..1200] + "…" : update.Notes;
+        var accepted = ShowMessage?.Invoke(new Message(
+            Strings.UPDATE_AVAILABLE_TITLE(update.Latest),
+            Strings.UPDATE_AVAILABLE_MESSAGE(update.Current, update.Latest),
+            Strings.UPDATE, Strings.CANCEL, notes)) ?? false;
+        if (accepted && await InstallUpdateAsync().ConfigureAwait(true))
+        {
+            Updater.Relaunch();
+            CloseWindow?.Invoke();
         }
     }
 
@@ -581,8 +610,8 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The one owner of <see cref="IsRunning"/>, the cancellation source and the current run.
-    /// An update install has no engine run, so it passes null.
+    /// This is the one owner of <see cref="IsRunning"/>, the cancellation source and the current
+    /// run. An update install passes null because it has no engine run.
     /// </summary>
     private async Task RunExclusiveAsync(EngineRun? engineRun, Func<CancellationToken, Task> work)
     {
@@ -625,13 +654,12 @@ public sealed partial class MainViewModel : ObservableObject
 
     partial void OnIsRunningChanged(bool value) => RefreshCommands();
 
-    // Progress and Detail change on every engine event, and nothing here reads them.
+    // The skipped properties change on every progress and stage event, and nothing refreshed here
+    // reads them.
     private void OnRowChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(QueueItem.IsChecked) or nameof(QueueItem.Status)
-            or nameof(QueueItem.Key) or nameof(QueueItem.Subtitles)
-            or nameof(QueueItem.HasVsScript) or nameof(QueueItem.StreamCipher)
-            or nameof(QueueItem.VideoKey))
+        if (e.PropertyName is not (nameof(QueueItem.Progress) or nameof(QueueItem.Detail)
+            or nameof(QueueItem.StatusLabel)))
         {
             RefreshQueue();
         }
@@ -660,3 +688,7 @@ public sealed partial class MainViewModel : ObservableObject
         CheckForUpdatesCommand.NotifyCanExecuteChanged();
     }
 }
+
+public sealed record Message(
+    string Title, string Text, string? Primary = null, string? Secondary = null,
+    string? Detail = null);

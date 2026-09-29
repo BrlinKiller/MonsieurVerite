@@ -50,7 +50,6 @@ public sealed partial class JobObject : IDisposable
 
     public void Assign(Process process)
     {
-        ArgumentNullException.ThrowIfNull(process);
         if (!disposed)
         {
             _ = AssignProcessToJobObject(handle, process.Handle);

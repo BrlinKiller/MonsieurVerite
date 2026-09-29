@@ -9,7 +9,6 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Microsoft.Win32;
-using MonsieurVerite.Engine;
 using MonsieurVerite.ViewModels;
 
 namespace MonsieurVerite.Views;
@@ -18,6 +17,8 @@ public partial class MainWindow : Window
 {
     private static readonly Duration OverlayFade = new(TimeSpan.FromMilliseconds(150));
     private readonly MainViewModel viewModel;
+    private readonly TaskCompletionSource shown =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
     private ScrollViewer? logScroller;
     private int dragDepth;
 
@@ -36,10 +37,9 @@ public partial class MainWindow : Window
             ShowSettings = ShowSettings,
             PromptKey = PromptKey,
             CopyText = CopyToClipboard,
-            AnswerQuestion = prompt =>
-                MessageDialog.Show(this, Strings.QUESTION_TITLE, prompt, Strings.YES, Strings.NO),
-            ConfirmUpdate = ConfirmUpdate,
-            RestartRequested = Restart,
+            ShowMessage = message => MessageDialog.Show(this, message.Title, message.Text,
+                message.Primary, message.Secondary, message.Detail),
+            CloseWindow = Close,
         };
         DataContext = viewModel;
         LogList.ItemContainerGenerator.ItemsChanged += OnLogChanged;
@@ -55,7 +55,7 @@ public partial class MainWindow : Window
 
         Dispatcher.UnhandledException += OnUnhandledException;
         Loaded += OnLoaded;
-        ContentRendered += OnContentRendered;
+        ContentRendered += (_, _) => shown.TrySetResult();
         Closing += OnClosing;
     }
 
@@ -95,18 +95,6 @@ public partial class MainWindow : Window
         Bleed.Fill = Chrome.Bleed((Color)FindResource("WindowColor"),
             (Color)FindResource("AccentColor"), dpi);
 
-    private void OnContentRendered(object? sender, EventArgs e)
-    {
-        if (!viewModel.HasEngine)
-        {
-            MessageDialog.Show(
-                this,
-                Strings.ENGINE_MISSING_TITLE,
-                Strings.ENGINE_MISSING_MESSAGE,
-                detail: Strings.ENGINE_MISSING_DETAIL(viewModel.EnginePath));
-        }
-    }
-
     // Without this, an exception from an async void handler or a command closes the app with no
     // trace. Only the log takes it under a dialog, because a repeating failure would stack them.
     private void OnUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -122,17 +110,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnLoaded(object sender, RoutedEventArgs e)
-    {
-        if (Directory.Exists(viewModel.SourceDirectory))
-        {
-            await viewModel.LoadSourceAsync(viewModel.SourceDirectory);
-        }
-
-        var translation = viewModel.RefreshTranslationOnStartupAsync();
-        await viewModel.CheckForUpdatesOnStartupAsync();
-        await translation;
-    }
+    private async void OnLoaded(object sender, RoutedEventArgs e) =>
+        await viewModel.StartupAsync(shown.Task);
 
     // A dialog disables this window, but a WM_CLOSE from outside (taskkill without /f) still
     // arrives, and closing here would pull the dialog out from under its ShowDialog caller.
@@ -204,38 +183,7 @@ public partial class MainWindow : Window
     private void Exit_Click(object sender, RoutedEventArgs e) => Close();
 
     private void About_Click(object sender, RoutedEventArgs e) =>
-        new AboutDialog(viewModel) { Owner = this }.ShowDialog();
-
-    private bool ConfirmUpdate(UpdateEvent update)
-    {
-        if (!update.Available)
-        {
-            if (update.Reason is { Length: > 0 } reason)
-            {
-                MessageDialog.Show(this, Strings.UPDATE_CHECK_FAILED_TITLE, reason);
-            }
-            else
-            {
-                MessageDialog.Show(this, Strings.UP_TO_DATE_TITLE,
-                    Strings.UP_TO_DATE_MESSAGE(update.Current));
-            }
-
-            return false;
-        }
-
-        var notes = update.Notes is { Length: > 1200 } text ? text[..1200] + "…" : update.Notes;
-        return MessageDialog.Show(
-            this,
-            Strings.UPDATE_AVAILABLE_TITLE(update.Latest),
-            Strings.UPDATE_AVAILABLE_MESSAGE(update.Current, update.Latest),
-            Strings.UPDATE, Strings.CANCEL, notes);
-    }
-
-    private void Restart()
-    {
-        Updater.Relaunch();
-        Close();
-    }
+        new AboutDialog(viewModel.HasEngine, viewModel.EngineVersion) { Owner = this }.ShowDialog();
 
     private void Queue_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -274,7 +222,7 @@ public partial class MainWindow : Window
     }
 
     private bool CanAccept(DragEventArgs e) =>
-        !viewModel.IsRunning && Dialog is null && e.Data.GetDataPresent(DataFormats.FileDrop);
+        !viewModel.IsRunning && e.Data.GetDataPresent(DataFormats.FileDrop);
 
     private void Window_DragEnter(object sender, DragEventArgs e)
     {
@@ -312,7 +260,7 @@ public partial class MainWindow : Window
         e.Handled = true;
         dragDepth = 0;
         Fade(DropOverlay, false);
-        if (viewModel.IsRunning || Dialog is not null ||
+        if (viewModel.IsRunning ||
             e.Data.GetData(DataFormats.FileDrop) is not string[] { Length: > 0 } dropped)
         {
             return;

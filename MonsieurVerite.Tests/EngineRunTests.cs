@@ -129,20 +129,15 @@ public class EngineRunTests : ViewModelTest
         Assert.Contains("\"a\"", File.ReadAllText(viewModel.RecoveredKeysPath), StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData(true, null, "Charlotte 1.1 is available (running 1.0).")]
-    [InlineData(false, "offline", "Update check failed: offline")]
-    [InlineData(false, null, "Charlotte 1.0 is up to date.")]
-    public void UpdateCheckIsRememberedAndLogged(bool available, string? reason, string expected)
+    [Fact]
+    public void UpdateCheckIsRemembered()
     {
-        var viewModel = NewViewModel();
-        var run = NewRun(viewModel);
-        var update = new UpdateEvent { Current = "1.0", Latest = "1.1", Available = available, Reason = reason };
+        var run = NewRun(NewViewModel());
+        var update = new UpdateEvent { Current = "1.0", Latest = "1.1", Available = true };
 
         run.Apply(update);
 
         Assert.Same(update, run.Update);
-        Assert.Contains(expected, viewModel.Log);
     }
 
     [Fact]
@@ -211,12 +206,14 @@ public class EngineRunTests : ViewModelTest
     {
         var viewModel = NewViewModel();
         var run = NewRun(viewModel);
-        string? asked = null;
-        viewModel.AnswerQuestion = prompt => { asked = prompt; return true; };
+        Message? asked = null;
+        viewModel.ShowMessage = message => { asked = message; return true; };
 
         run.Apply(new QuestionEvent { Id = "q0", Prompt = "Overwrite keys.json?", Default = false });
 
-        Assert.Equal("Overwrite keys.json?", asked);
+        Assert.Equal("Overwrite keys.json?", asked?.Text);
+        Assert.Equal(Strings.YES, asked?.Primary);
+        Assert.Equal(Strings.NO, asked?.Secondary);
     }
 
     [Fact]
@@ -371,7 +368,7 @@ public class EngineRunTests : ViewModelTest
             """@echo {"type":"question","id":"q0","prompt":"overwrite?","default":false}""",
             "@ping -n 60 127.0.0.1 >nul");
         var viewModel = NewViewModel(engine);
-        viewModel.AnswerQuestion = _ => throw new InvalidOperationException("boom");
+        viewModel.ShowMessage = _ => throw new InvalidOperationException("boom");
         var running = Add(viewModel, "a.usm");
         var queued = Add(viewModel, "b.usm");
 

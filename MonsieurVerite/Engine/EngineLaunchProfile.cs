@@ -10,14 +10,10 @@ public sealed record EngineLaunchProfile
 
     public required string WorkingDirectory { get; init; }
 
-    public static EngineLaunchProfile Packaged(string executablePath)
+    public static EngineLaunchProfile Packaged(string executablePath) => new()
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(executablePath);
-        return new EngineLaunchProfile
-        {
-            FileName = executablePath,
-            BaseArguments = [],
-            WorkingDirectory = Path.GetDirectoryName(executablePath) ?? ".",
-        };
-    }
+        FileName = executablePath,
+        BaseArguments = [],
+        WorkingDirectory = Path.GetDirectoryName(executablePath) ?? ".",
+    };
 }

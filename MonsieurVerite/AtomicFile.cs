@@ -7,8 +7,6 @@ public static class AtomicFile
 {
     public static void WriteAllText(string path, string contents)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        ArgumentNullException.ThrowIfNull(contents);
         if (Path.GetDirectoryName(path) is { Length: > 0 } directory)
         {
             Directory.CreateDirectory(directory);

@@ -13,13 +13,8 @@ public abstract record EngineEvent
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
     };
 
-    public static EngineEvent Parse(string? line)
+    public static EngineEvent Parse(string line)
     {
-        if (string.IsNullOrWhiteSpace(line))
-        {
-            return new UnknownEvent();
-        }
-
         try
         {
             using var document = JsonDocument.Parse(line);

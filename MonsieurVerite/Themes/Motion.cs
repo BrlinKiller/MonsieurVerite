@@ -13,17 +13,11 @@ public static class Motion
 
     private static readonly Duration GlideDuration = new(TimeSpan.FromMilliseconds(220));
 
-    public static double GetProgress(DependencyObject element)
-    {
-        ArgumentNullException.ThrowIfNull(element);
-        return (double)element.GetValue(ProgressProperty);
-    }
+    public static double GetProgress(DependencyObject element) =>
+        (double)element.GetValue(ProgressProperty);
 
-    public static void SetProgress(DependencyObject element, double value)
-    {
-        ArgumentNullException.ThrowIfNull(element);
+    public static void SetProgress(DependencyObject element, double value) =>
         element.SetValue(ProgressProperty, value);
-    }
 
     private static void OnProgressChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
