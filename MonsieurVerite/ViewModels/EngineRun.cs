@@ -22,7 +22,7 @@ internal sealed class EngineRun(MainViewModel owner, EngineLaunchProfile profile
 
     public async Task RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
-        using var engine = new EngineClient(profile);
+        await using var engine = new EngineClient(profile);
         using var registration = cancellationToken.Register(engine.SendCancel);
         client = engine;
         cancellation = cancellationToken;
@@ -67,8 +67,8 @@ internal sealed class EngineRun(MainViewModel owner, EngineLaunchProfile profile
         }
         catch (Exception)
         {
-            // A bug in Apply ends the run, and disposing the client kills the engine. The
-            // unhandled-error dialog shows the exception.
+            // A bug in Apply ends the run, and disposing the client kills the engine and waits
+            // for it to exit. The unhandled-error dialog shows the exception.
             failure = Strings.UNEXPECTED_ERROR_DETAIL;
             throw;
         }

@@ -32,7 +32,7 @@ public class EngineClientTests(ITestOutputHelper output)
         }
 
         var events = new List<EngineEvent>();
-        using var client = new EngineClient(engine);
+        await using var client = new EngineClient(engine);
         using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(3));
 
         var exit = client.Start(["--probe", "--json", cutscene]);
@@ -69,7 +69,7 @@ public class EngineClientTests(ITestOutputHelper output)
         using var scratch = new ScratchFolder();
         var script = scratch.File("engine.cmd");
         File.WriteAllText(script, """@echo {"type":"log","level":"info","message":"%CHARLOTTE_LANG%"}""");
-        using var client = new EngineClient(new EngineLaunchProfile
+        await using var client = new EngineClient(new EngineLaunchProfile
         {
             FileName = "cmd.exe",
             BaseArguments = ["/c", script],

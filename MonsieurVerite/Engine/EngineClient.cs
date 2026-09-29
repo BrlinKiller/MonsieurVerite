@@ -5,7 +5,7 @@ using System.Threading.Channels;
 
 namespace MonsieurVerite.Engine;
 
-public sealed class EngineClient : IDisposable
+public sealed class EngineClient : IAsyncDisposable
 {
     private const int StandardErrorTailCapacity = 20;
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false);
@@ -17,6 +17,7 @@ public sealed class EngineClient : IDisposable
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
 
     private Process? process;
+    private Task pumped = Task.CompletedTask;
     private bool disposed;
 
     public EngineClient(EngineLaunchProfile profile) => this.profile = profile;
@@ -63,7 +64,9 @@ public sealed class EngineClient : IDisposable
             ?? throw new InvalidOperationException($"Could not start '{profile.FileName}'.");
         process = started;
         job.Assign(started);
-        return PumpAsync(started);
+        var exit = PumpAsync(started);
+        pumped = exit;
+        return exit;
     }
 
     public void SendAnswer(string id, bool value) => Send(AnswerCommand(id, value));
@@ -81,7 +84,8 @@ public sealed class EngineClient : IDisposable
     /// <summary>Ends the engine and everything it started.</summary>
     public void Kill() => job.Terminate();
 
-    public void Dispose()
+    /// <summary>Ends the engine if it is still running and completes once it has exited.</summary>
+    public async ValueTask DisposeAsync()
     {
         if (disposed)
         {
@@ -89,6 +93,8 @@ public sealed class EngineClient : IDisposable
         }
 
         disposed = true;
+        job.Terminate();
+        await pumped.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         job.Dispose();
         process?.Dispose();
         process = null;
