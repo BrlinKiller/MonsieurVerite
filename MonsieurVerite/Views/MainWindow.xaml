@@ -40,7 +40,7 @@
                 BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1">
             <DockPanel LastChildFill="False">
                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="12,0,0,0">
-                    <Image Source="/logo.png" Width="40" Height="40" Margin="-8,0,0,0"
+                    <Image Source="/Assets/logo.png" Width="38" Height="38" Margin="-8,0,0,0"
                            RenderOptions.BitmapScalingMode="HighQuality" />
                     <TextBlock Text="charlotte" FontWeight="SemiBold"
                                Foreground="{StaticResource TextBrush}"
