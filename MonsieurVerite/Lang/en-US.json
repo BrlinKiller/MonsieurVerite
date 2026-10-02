@@ -109,7 +109,7 @@
   "ENGINE_STOPPED_LOG": "Engine stopped.",
   "ENGINE_EXITED_LOG": "Engine exited with code {code}.",
   "ENGINE_START_FAILED_LOG": "Could not start the engine '{path}': {error}",
-  "PROTOCOL_MISMATCH_LOG": "Engine speaks protocol {engine_protocol}; this GUI expects {gui_protocol}.",
+  "VERSION_MISMATCH_LOG": "GUI and engine version mismatch.",
   "KEY_NOT_RECOVERABLE_LOG": "{file}: key not recoverable — {reason}",
   "CRACK_SUMMARY_LOG": "Recovered {recovered} key(s), {unrecovered} not recoverable.",
   "UPDATE_AVAILABLE_LOG": "Charlotte {latest} is available (running {current}).",

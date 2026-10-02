@@ -134,10 +134,9 @@ internal sealed class EngineRun(MainViewModel owner, EngineLaunchProfile profile
         {
             case SessionStartEvent session:
                 owner.EngineVersion = session.Version;
-                if (session.Protocol != EngineEvent.ProtocolVersion)
+                if (session.Version != App.Version)
                 {
-                    owner.AppendLog(Strings.PROTOCOL_MISMATCH_LOG(session.Protocol,
-                        EngineEvent.ProtocolVersion));
+                    owner.AppendLog(Strings.VERSION_MISMATCH_LOG);
                 }
 
                 break;

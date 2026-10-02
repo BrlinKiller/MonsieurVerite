@@ -44,7 +44,6 @@ public class EngineClientTests(ITestOutputHelper output)
         Assert.Equal(0, await exit);
 
         var start = Assert.IsType<SessionStartEvent>(events.FirstOrDefault(e => e is SessionStartEvent));
-        Assert.Equal(EngineEvent.ProtocolVersion, start.Protocol);
         Assert.Matches(@"^\d+\.\d+\.\d+", start.Version);
 
         var probe = Assert.IsType<ProbeEvent>(events.FirstOrDefault(e => e is ProbeEvent));

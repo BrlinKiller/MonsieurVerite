@@ -4,8 +4,6 @@ namespace MonsieurVerite.Engine;
 
 public abstract record EngineEvent
 {
-    public const int ProtocolVersion = 1;
-
     public string Type { get; init; } = "";
 
     private static readonly JsonSerializerOptions SerializerOptions = new()
@@ -58,8 +56,6 @@ public abstract record EngineEvent
 
 public sealed record SessionStartEvent : EngineEvent
 {
-    public int Protocol { get; init; }
-
     public string? Version { get; init; }
 }
 

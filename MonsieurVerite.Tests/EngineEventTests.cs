@@ -11,7 +11,7 @@ public class EngineEventTests
     /// <summary>Carries fields the records do not declare, which must be ignored.</summary>
     public static TheoryData<string, Type> KnownKinds() => new()
     {
-        { """{"type":"session_start","protocol":1,"version":"1.0.0"}""", typeof(SessionStartEvent) },
+        { """{"type":"session_start","version":"1.0.0"}""", typeof(SessionStartEvent) },
         { """{"type":"log","level":"info","message":"x"}""", typeof(LogEvent) },
         { """{"type":"stage","stage":"demux","status":"start","total":10,"unit":"chunk"}""", typeof(StageEvent) },
         { """{"type":"progress","stage":"demux","current":5,"total":10}""", typeof(ProgressEvent) },
