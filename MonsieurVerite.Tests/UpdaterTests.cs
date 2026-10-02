@@ -79,6 +79,22 @@ public class UpdaterTests : IDisposable
     }
 
     [Fact]
+    public void TheCharlotteFolderTheBundleIsWrappedInIsDropped()
+    {
+        File.WriteAllText(App("charlotte-cli.exe"), "old engine");
+        var zip = Zip(
+            ("charlotte/", ""),
+            ("charlotte/charlotte-cli.exe", "new engine"),
+            ("charlotte/lang/de-DE/cli.json", "{}"));
+
+        Updater.Install(zip, App(""));
+
+        Assert.Equal("new engine", File.ReadAllText(App("charlotte-cli.exe")));
+        Assert.True(File.Exists(App(Path.Combine("lang", "de-DE", "cli.json"))));
+        Assert.False(Directory.Exists(App("charlotte")));
+    }
+
+    [Fact]
     public void AnAppFolderWithATrailingSeparatorIsStillTheAppFolder()
     {
         var zip = Zip(("charlotte-cli.exe", "engine"));

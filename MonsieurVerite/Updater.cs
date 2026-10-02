@@ -13,6 +13,8 @@ public static class Updater
     private const string LatestReleaseApi =
         "https://api.github.com/repos/The-Steambird/charlotte/releases/latest";
 
+    private const string BundleFolder = "charlotte/";
+
     internal static readonly HttpClient Http = CreateClient();
 
     public static async Task<IReadOnlyList<string>> InstallLatestAsync(
@@ -136,6 +138,10 @@ public static class Updater
         var entries = archive.Entries
             .Select(entry => (Entry: entry, Name: entry.FullName.Replace('\\', '/')))
             .Where(file => !file.Name.EndsWith('/'))
+            .Select(file => (file.Entry,
+                Name: file.Name.StartsWith(BundleFolder, StringComparison.OrdinalIgnoreCase)
+                    ? file.Name[BundleFolder.Length..]
+                    : file.Name))
             .ToList();
         var movedAside = new List<(string Original, string Stale)>();
         var written = new List<string>();
