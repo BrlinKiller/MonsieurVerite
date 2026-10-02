@@ -7,7 +7,7 @@ namespace MonsieurVerite;
 public static class Translations
 {
     private const string ListingApi =
-        "https://api.github.com/repos/The-Steambird/MonsieurVerite/contents/MonsieurVerite/Lang?ref=master";
+        "https://api.github.com/repos/The-Steambird/MonsieurVerite/contents/MonsieurVerite/Locales?ref=master";
 
     internal static Dictionary<string, string>? Resolve(CultureInfo culture, string appDirectory)
     {
@@ -94,7 +94,7 @@ public static class Translations
     // built.
     internal static void DeleteAll(string appDirectory)
     {
-        var folder = Path.Combine(appDirectory, "lang");
+        var folder = Path.Combine(appDirectory, "locales");
         if (!Directory.Exists(folder))
         {
             return;
@@ -156,7 +156,7 @@ public static class Translations
         Strings.Languages.Contains(language) ? Strings.Load(language) : null;
 
     internal static string FilePath(string appDirectory, string language) =>
-        Path.Combine(appDirectory, "lang", language, "gui.json");
+        Path.Combine(appDirectory, "locales", language, "gui.json");
 
     internal static Dictionary<string, string>? Read(string appDirectory, string language)
     {
@@ -174,7 +174,7 @@ public static class Translations
     private static List<string> Downloaded(string appDirectory)
     {
         var languages = new List<string>();
-        var folder = Path.Combine(appDirectory, "lang");
+        var folder = Path.Combine(appDirectory, "locales");
         if (!Directory.Exists(folder))
         {
             return languages;
@@ -201,7 +201,7 @@ public static class Translations
         }
 
         DeleteIfEmpty(Path.GetDirectoryName(path)!);
-        DeleteIfEmpty(Path.Combine(appDirectory, "lang"));
+        DeleteIfEmpty(Path.Combine(appDirectory, "locales"));
     }
 
     private static void DeleteIfEmpty(string folder)

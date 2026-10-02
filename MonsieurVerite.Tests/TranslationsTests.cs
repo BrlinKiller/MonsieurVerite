@@ -147,7 +147,7 @@ public class TranslationsTests : IDisposable
 
         Assert.False(Translations.Save(scratch.Root, Unshipped, "{}"));
 
-        Assert.False(Directory.Exists(scratch.File("lang")));
+        Assert.False(Directory.Exists(scratch.File("locales")));
     }
 
     [Fact]
@@ -155,14 +155,14 @@ public class TranslationsTests : IDisposable
     {
         Assert.False(Translations.Save(scratch.Root, Unshipped, "{}"));
 
-        Assert.False(Directory.Exists(scratch.File("lang")));
+        Assert.False(Directory.Exists(scratch.File("locales")));
     }
 
     [Fact]
     public void RemovingTheTranslationKeepsTheEnginesFileBesideIt()
     {
         Translations.Save(scratch.Root, Unshipped, """{ "OPEN_FOLDER": "Ordner öffnen" }""");
-        var engine = scratch.File(Path.Combine("lang", Unshipped, "cli.json"));
+        var engine = scratch.File(Path.Combine("locales", Unshipped, "cli.json"));
         File.WriteAllText(engine, "{}");
 
         Translations.Save(scratch.Root, Unshipped, "{}");

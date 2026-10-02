@@ -31,7 +31,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="Lang\*.json" LogicalName="Lang/%(Filename)%(Extension)" />
+        <EmbeddedResource Include="Locales\*.json" LogicalName="Locales/%(Filename)%(Extension)" />
         <Resource Include="Assets\logo.png" />
     </ItemGroup>
 
@@ -43,9 +43,9 @@
     </UsingTask>
 
     <Target Name="GenerateStrings" BeforeTargets="CoreCompile"
-            Inputs="Lang\en-US.json;..\build\GenerateStrings.cs"
+            Inputs="Locales\en-US.json;..\build\GenerateStrings.cs"
             Outputs="$(IntermediateOutputPath)Strings.g.cs">
-        <GenerateStrings Source="Lang\en-US.json" Output="$(IntermediateOutputPath)Strings.g.cs"
+        <GenerateStrings Source="Locales\en-US.json" Output="$(IntermediateOutputPath)Strings.g.cs"
                          Namespace="$(RootNamespace)" />
         <ItemGroup>
             <Compile Include="$(IntermediateOutputPath)Strings.g.cs" />

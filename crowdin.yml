@@ -1,6 +1,6 @@
 preserve_hierarchy: true
 files:
-  - source: /MonsieurVerite/Lang/en-US.json
+  - source: /MonsieurVerite/Locales/en-US.json
     dest: /gui.json
-    translation: /MonsieurVerite/Lang/%locale%.json
+    translation: /MonsieurVerite/Locales/%locale%.json
     skip_untranslated_strings: true

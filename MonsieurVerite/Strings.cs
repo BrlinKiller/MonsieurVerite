@@ -6,11 +6,11 @@ using System.Text.RegularExpressions;
 namespace MonsieurVerite;
 
 /// <summary>
-/// Every key in Lang/en-US.json is a generated member. English fills any gap in the translation.
+/// Every key in Locales/en-US.json is a generated member. English fills any gap in the translation.
 /// </summary>
 public static partial class Strings
 {
-    private const string Prefix = "Lang/";
+    private const string Prefix = "Locales/";
 
     private static Dictionary<string, string>? translation;
 
