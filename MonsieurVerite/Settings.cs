@@ -33,6 +33,14 @@ public sealed class Settings
 
     public bool CheckForUpdatesOnStartup { get; set; } = true;
 
+    public string Language
+    {
+        get;
+        set => field = string.IsNullOrWhiteSpace(value) || !Translations.IsCulture(value)
+            ? Strings.SourceLanguage
+            : value;
+    } = Strings.SourceLanguage;
+
     public RunOptions Options { get; set; } = new();
 
     [JsonIgnore] public string EffectiveEnginePath => EnginePath ?? DefaultEnginePath;
@@ -43,9 +51,16 @@ public sealed class Settings
         Path.Combine(Path.GetDirectoryName(EffectiveEnginePath) ?? AppContext.BaseDirectory,
             "recovered_keys.json");
 
+    // The file is read before the language is chosen, which is why the message is built only when
+    // asked for.
+    private (string Path, string Reason)? loadFailure;
+
     /// <summary>Why the file on disk was not used, when it was there but unreadable.</summary>
     [JsonIgnore]
-    public string? LoadError { get; private set; }
+    public string? LoadError =>
+        loadFailure is { } failure
+            ? Strings.SETTINGS_UNREADABLE_LOG(failure.Path, failure.Reason)
+            : null;
 
     public EngineLaunchProfile? ResolveEngine() =>
         File.Exists(EffectiveEnginePath) ? EngineLaunchProfile.Packaged(EffectiveEnginePath) : null;
@@ -65,7 +80,7 @@ public sealed class Settings
         }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
         {
-            return new Settings { LoadError = Strings.SETTINGS_UNREADABLE_LOG(path, e.Message) };
+            return new Settings { loadFailure = (path, e.Message) };
         }
 
         return new Settings();

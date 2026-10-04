@@ -8,6 +8,7 @@ namespace MonsieurVerite.Views;
 public partial class SettingsDialog : DialogWindow
 {
     private readonly Settings settings;
+    private readonly List<Language> languages = Translations.Choices(AppContext.BaseDirectory);
     private RunOptions working;
 
     public SettingsDialog(Settings settings)
@@ -18,6 +19,8 @@ public partial class SettingsDialog : DialogWindow
         DataContext = working;
         EngineBox.Text = settings.EffectiveEnginePath;
         UpdateCheck.IsChecked = settings.CheckForUpdatesOnStartup;
+        LanguageBox.ItemsSource = languages;
+        LanguageBox.SelectedItem = languages.Find(language => language.Code == settings.Language);
     }
 
     private void Ok_Click(object sender, RoutedEventArgs e)
@@ -25,6 +28,11 @@ public partial class SettingsDialog : DialogWindow
         settings.Options = working;
         settings.EnginePath = EngineBox.Text.Trim();
         settings.CheckForUpdatesOnStartup = UpdateCheck.IsChecked == true;
+        if (LanguageBox.SelectedItem is Language language)
+        {
+            settings.Language = language.Code;
+        }
+
         DialogResult = true;
     }
 
@@ -34,6 +42,7 @@ public partial class SettingsDialog : DialogWindow
         DataContext = working;
         EngineBox.Text = Settings.DefaultEnginePath;
         UpdateCheck.IsChecked = true;
+        LanguageBox.SelectedItem = languages.Find(language => language.Code == Strings.SourceLanguage);
     }
 
     private void Browse_Click(object sender, RoutedEventArgs e)

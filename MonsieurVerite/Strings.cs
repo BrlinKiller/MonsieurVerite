@@ -12,9 +12,11 @@ public static partial class Strings
 {
     private const string Prefix = "Locales/";
 
+    internal const string SourceLanguage = "en-US";
+
     private static Dictionary<string, string>? translation;
 
-    internal static IReadOnlyDictionary<string, string> English { get; } = Load("en-US");
+    internal static IReadOnlyDictionary<string, string> English { get; } = Load(SourceLanguage);
 
     internal static IReadOnlyList<string> Languages { get; } =
         typeof(Strings).Assembly.GetManifestResourceNames()
@@ -23,13 +25,13 @@ public static partial class Strings
             .ToList();
 
     /// <summary>The culture the UI asked for, passed to the engine as CHARLOTTE_LANG.</summary>
-    public static string Language { get; private set; } = "en-US";
+    public static string Language { get; private set; } = SourceLanguage;
 
     /// <summary>Switches to the closest language there is a file for, else English.</summary>
-    public static void Use(CultureInfo culture, string appDirectory)
+    public static void Use(string language, string appDirectory)
     {
-        Language = culture.Name;
-        translation = Translations.Resolve(culture, appDirectory);
+        Language = language;
+        translation = Translations.Resolve(CultureInfo.GetCultureInfo(language), appDirectory);
     }
 
     /// <summary>A string with its placeholders left in, for text that puts links in them.</summary>

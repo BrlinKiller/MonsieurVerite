@@ -22,14 +22,13 @@ public partial class MainWindow : Window
     private ScrollViewer? logScroller;
     private int dragDepth;
 
-    public MainWindow()
+    public MainWindow(Settings settings)
     {
         InitializeComponent();
         var area = SystemParameters.WorkArea;
         Width = Math.Min(Width, area.Width - 48);
         Height = Math.Min(Height, area.Height - 48);
 
-        var settings = Settings.Load();
         viewModel = new MainViewModel(settings.ResolveEngine(), settings)
         {
             PickFolder = PickFolder,

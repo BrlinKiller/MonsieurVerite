@@ -261,12 +261,40 @@ public sealed partial class MainViewModel : ObservableObject
     private void EditSettings()
     {
         var previousPath = EnginePath;
+        var previousLanguage = settings.Language;
         if (ShowSettings?.Invoke(settings) ?? false)
         {
             SaveSettings();
             OnPropertyChanged(nameof(Options));
             OnPropertyChanged(nameof(Summary));
             ApplyEngineSetting(previousPath);
+            OfferRestartForLanguage(previousLanguage);
+        }
+    }
+
+    // A window reads its strings once, which is why a new language needs a restart. Switching
+    // them first puts the question in the language the user just picked.
+    internal void OfferRestartForLanguage(string previousLanguage)
+    {
+        if (settings.Language == previousLanguage)
+        {
+            return;
+        }
+
+        Strings.Use(settings.Language, AppContext.BaseDirectory);
+
+        if (IsRunning)
+        {
+            AppendLog(Strings.LANGUAGE_CHANGED_LOG);
+            return;
+        }
+
+        var restart = ShowMessage?.Invoke(new Message(Strings.RESTART_TITLE,
+            Strings.RESTART_MESSAGE, Strings.RESTART_NOW, Strings.LATER)) ?? false;
+        if (restart)
+        {
+            Updater.Relaunch();
+            CloseWindow?.Invoke();
         }
     }
 

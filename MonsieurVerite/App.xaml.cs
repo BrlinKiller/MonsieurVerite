@@ -1,9 +1,9 @@
-using System.Globalization;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using MonsieurVerite.Views;
 
 namespace MonsieurVerite;
 
@@ -21,13 +21,15 @@ public partial class App
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        Strings.Use(CultureInfo.CurrentUICulture, AppContext.BaseDirectory);
-        base.OnStartup(e);
         Updater.WaitForPredecessor(e.Args);
+        var settings = Settings.Load();
+        Strings.Use(settings.Language, AppContext.BaseDirectory);
+        base.OnStartup(e);
         Updater.DeleteStaleFiles(AppContext.BaseDirectory);
         ThemeMode = ThemeMode.Dark;
         EventManager.RegisterClassHandler(typeof(Window), UIElement.PreviewMouseDownEvent,
             new MouseButtonEventHandler(BlurOnClickOutside));
+        new MainWindow(settings).Show();
     }
 
     private static void BlurOnClickOutside(object sender, MouseButtonEventArgs e)

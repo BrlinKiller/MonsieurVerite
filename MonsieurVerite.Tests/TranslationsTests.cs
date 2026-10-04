@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using MonsieurVerite.ViewModels;
 
 namespace MonsieurVerite.Tests;
 
@@ -78,6 +79,31 @@ public class TranslationsTests : IDisposable
 
         Assert.Empty(Translations.Resolve(CultureInfo.GetCultureInfo(Unshipped), scratch.Root)!);
         Assert.Null(Translations.Resolve(CultureInfo.GetCultureInfo(AlsoUnshipped), scratch.Root));
+    }
+
+    [Fact]
+    public void TheLanguageChoicesIncludeDownloads()
+    {
+        var path = Translations.FilePath(scratch.Root, Unshipped);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, """{ "OPEN_FOLDER": "Paasuuk" }""");
+
+        var choices = Translations.Choices(scratch.Root);
+
+        Assert.Contains(new Language("en-US", "English"), choices);
+        Assert.Contains(new Language(Unshipped, "Kalaallisut"), choices);
+    }
+
+    [Fact]
+    public void ALanguageNamesItsRegionOnlyWhenAnotherChoiceSharesIt()
+    {
+        string[] codes = ["en-US", "es-ES", "zh-CN", "zh-TW"];
+
+        Assert.Equal("Español", Translations.NativeName("es-ES", codes));
+        Assert.Equal(CultureInfo.GetCultureInfo("zh-CN").NativeName,
+            Translations.NativeName("zh-CN", codes));
+        Assert.NotEqual(Translations.NativeName("zh-CN", codes),
+            Translations.NativeName("zh-TW", codes));
     }
 
     private const string Listing = """

@@ -53,6 +53,43 @@ public class MainViewModelTests(ITestOutputHelper output) : ViewModelTest
         Assert.Equal(expected, shown?.Title);
     }
 
+    // Offering a restart switches the strings, and English is the only switch that leaves them
+    // as every other test expects.
+    [Theory]
+    [InlineData("en-US", "de-DE", true)]
+    [InlineData("de-DE", "de-DE", false)]
+    public void ARestartIsOfferedOnlyForANewLanguage(
+        string chosen, string previous, bool offered)
+    {
+        var viewModel = new MainViewModel(null, new Settings { Language = chosen });
+        Message? shown = null;
+        viewModel.ShowMessage = message =>
+        {
+            shown = message;
+            return false;
+        };
+
+        viewModel.OfferRestartForLanguage(previous);
+
+        Assert.Equal(offered ? Strings.RESTART_TITLE : null, shown?.Title);
+    }
+
+    [Fact]
+    public void ANewLanguageChosenMidRunIsOnlyLogged()
+    {
+        var viewModel = new MainViewModel(null, new Settings { Language = "en-US" })
+        {
+            IsRunning = true,
+        };
+        var shown = false;
+        viewModel.ShowMessage = _ => shown = true;
+
+        viewModel.OfferRestartForLanguage("de-DE");
+
+        Assert.False(shown);
+        Assert.Contains(Strings.LANGUAGE_CHANGED_LOG, viewModel.Log);
+    }
+
     [Fact]
     public async Task StartupCheckCanBeTurnedOff()
     {

@@ -19,7 +19,7 @@
             <TextBlock Style="{StaticResource DialogTitle}"
                        Text="{x:Static local:Strings.SETTINGS_TITLE}" Margin="0,0,0,16" />
             <TextBlock Style="{StaticResource SectionLabel}"
-                       Text="{x:Static local:Strings.ENGINE_SECTION}" />
+                       Text="{x:Static local:Strings.GENERAL_SECTION}" />
             <Grid Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="110" />
@@ -27,6 +27,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
@@ -42,6 +43,14 @@
                           Style="{StaticResource OptionCheck}"
                           Content="{x:Static local:Strings.CHECK_FOR_UPDATES_ON_STARTUP}"
                           ToolTip="{x:Static local:Strings.CHECK_FOR_UPDATES_ON_STARTUP_TIP}" />
+                <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal">
+                    <Path Style="{StaticResource Icon}" Data="{StaticResource LanguagesIcon}"
+                          TextElement.Foreground="{StaticResource DimBrush}" Margin="0,0,6,8" />
+                    <TextBlock Text="{x:Static local:Strings.DISPLAY_LANGUAGE}" />
+                </StackPanel>
+                <ComboBox x:Name="LanguageBox" Grid.Row="2" Grid.Column="1"
+                          Style="{StaticResource OptionCombo}" Width="240"
+                          HorizontalAlignment="Left" DisplayMemberPath="Name" />
             </Grid>
 
             <Grid Margin="0,0,0,10">

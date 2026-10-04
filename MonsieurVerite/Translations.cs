@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using MonsieurVerite.ViewModels;
 
 namespace MonsieurVerite;
 
@@ -12,12 +13,33 @@ public static class Translations
     internal static Dictionary<string, string>? Resolve(CultureInfo culture, string appDirectory)
     {
         var language = Strings.Closest(culture, Strings.Languages.Union(Downloaded(appDirectory)));
-        if (language is null or "en-US")
+        if (language is null or Strings.SourceLanguage)
         {
             return null;
         }
 
         return Merge(BuiltIn(language), Read(appDirectory, language));
+    }
+
+    internal static List<Language> Choices(string appDirectory)
+    {
+        var codes = Strings.Languages.Union(Downloaded(appDirectory)).ToList();
+        return codes
+            .Select(code => new Language(code, NativeName(code, codes)))
+            .OrderBy(choice => choice.Name, StringComparer.CurrentCulture)
+            .ToList();
+    }
+
+    internal static string NativeName(string code, IReadOnlyCollection<string> codes)
+    {
+        var culture = CultureInfo.GetCultureInfo(code);
+        var language = culture.TwoLetterISOLanguageName;
+        var shared = codes.Count(other =>
+            CultureInfo.GetCultureInfo(other).TwoLetterISOLanguageName == language) > 1;
+        var name = shared || culture.IsNeutralCulture
+            ? culture.NativeName
+            : CultureInfo.GetCultureInfo(language).NativeName;
+        return char.ToUpper(name[0], culture) + name[1..];
     }
 
     /// <summary>Reports whether a new file was saved for the next start to pick up.</summary>
@@ -63,7 +85,7 @@ public static class Translations
             }
         }
 
-        return Strings.Closest(culture, urls.Keys) is { } closest and not "en-US"
+        return Strings.Closest(culture, urls.Keys) is { } closest and not Strings.SourceLanguage
             ? new TranslationFile(closest, urls[closest])
             : null;
     }
@@ -237,7 +259,7 @@ public static class Translations
         IReadOnlyDictionary<string, string> strings) =>
         strings.Where(pair => !string.IsNullOrEmpty(pair.Value)).ToDictionary();
 
-    private static bool IsCulture(string name)
+    internal static bool IsCulture(string name)
     {
         try
         {
