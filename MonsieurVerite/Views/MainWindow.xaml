@@ -20,6 +20,7 @@
 
     <Window.InputBindings>
         <KeyBinding Key="O" Modifiers="Ctrl" Command="{Binding OpenFolderCommand}" />
+        <KeyBinding Key="L" Modifiers="Ctrl" Command="{Binding LoadFromGameCommand}" />
         <KeyBinding Key="O" Modifiers="Ctrl+Shift" Command="{Binding BrowseFilesCommand}" />
         <KeyBinding Key="OemComma" Modifiers="Ctrl" Command="{Binding EditSettingsCommand}" />
     </Window.InputBindings>
@@ -48,7 +49,7 @@
                     <Border Style="{StaticResource ToolbarDivider}" />
                     <Button Style="{StaticResource ToolbarButton}"
                             Command="{Binding OpenFolderCommand}"
-                            ToolTip="{x:Static local:Strings.OPEN_FOLDER_TIP}">
+                            ToolTip="Ctrl+O">
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource Icon}"
                                   Data="{StaticResource FolderOpenIcon}" Margin="0,0,8,0" />
@@ -57,8 +58,18 @@
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}"
+                            Command="{Binding LoadFromGameCommand}"
+                            ToolTip="Ctrl+L">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Style="{StaticResource Icon}"
+                                  Data="{StaticResource GamepadIcon}" Margin="0,0,8,0" />
+                            <TextBlock Text="{x:Static local:Strings.LOAD_FROM_GAME}"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}"
                             Command="{Binding BrowseFilesCommand}"
-                            ToolTip="{x:Static local:Strings.ADD_FILES_TIP}">
+                            ToolTip="Ctrl+Shift+O">
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource Icon}"
                                   Data="{StaticResource FilePlusIcon}" Margin="0,0,8,0" />
@@ -71,7 +82,7 @@
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                     <Button Style="{StaticResource ToolbarIconButton}"
                             Command="{Binding EditSettingsCommand}"
-                            ToolTip="{x:Static local:Strings.SETTINGS_TIP}">
+                            ToolTip="Ctrl+,">
                         <Path Style="{StaticResource Icon}" Data="{StaticResource GearIcon}" />
                     </Button>
                     <Button x:Name="MoreButton" Style="{StaticResource ToolbarIconButton}"

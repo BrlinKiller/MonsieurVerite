@@ -227,6 +227,19 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(IsIdle))]
+    private async Task LoadFromGameAsync()
+    {
+        if (GameInstall.CutsceneFolder() is { } folder)
+        {
+            await LoadSourceAsync(folder).ConfigureAwait(true);
+        }
+        else
+        {
+            ShowMessage?.Invoke(new Message(Strings.LOAD_FROM_GAME, Strings.GAME_NOT_FOUND_MESSAGE));
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(IsIdle))]
     private async Task BrowseFilesAsync()
     {
         if (PickFiles?.Invoke(SourceDirectory) is { } files)
@@ -676,6 +689,7 @@ public sealed partial class MainViewModel : ObservableObject
     private void RefreshCommands()
     {
         OpenFolderCommand.NotifyCanExecuteChanged();
+        LoadFromGameCommand.NotifyCanExecuteChanged();
         BrowseFilesCommand.NotifyCanExecuteChanged();
         RemoveCheckedCommand.NotifyCanExecuteChanged();
         StartCommand.NotifyCanExecuteChanged();
